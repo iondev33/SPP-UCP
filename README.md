@@ -39,3 +39,33 @@ Or running tests with `coverage`:
 coverage run -m pytest
 ```
 
+Install the Python C development package in order to  build the C wrapper functions for python:
+
+```
+sudo apt-get install python3-dev
+```
+
+Verify the installlation:
+
+```
+find /usr/include -name Python.h
+```
+
+Then you check the python install path:
+
+```
+python3-config --includes
+```
+
+If you see something like this, it should be used as part of the C compiler flags:
+
+```
+-I/usr/include/python3.8
+``` 
+
+### Using the setup.py script to build python extension module
+
+(see chatgpt description)
+
+
+
