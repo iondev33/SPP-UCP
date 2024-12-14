@@ -21,7 +21,7 @@ python3 -m pip install spacepackets
 ```
 
 ### Running Tests
-If you want to run the tests, it is recommended to install `pytest` and `coverage` (optional) first: (Optionally, they can also be installed using conda.)
+If you want to run the tests in the `spacepacket-py` package, it is recommended to install `pytest` and `coverage`:
 
 ```
 python3 -m pip install coverage pytest
@@ -39,33 +39,59 @@ Or running tests with `coverage`:
 coverage run -m pytest
 ```
 
-Install the Python C development package in order to  build the C wrapper functions for python:
+### Example of using the spacepackets package
+
+See the `recv_space_packet_udp.py` and `send_space_packet_udp.py` files for examples of using the spacepackets package to send and receive space packets using UDP.
+
+## Build the space packet sender C program
+
+1. Install the `space_packet_module` to be globally accessible.
+
+``` bash
+sudo pip3 install .
+```
+
+2. Confirm it is installed
+
+```bash
+# Go to a different directory and run:
+python3 -c "import space_packet_module; print('Module found')"
+```
+3. Check python version
+
+```
+python3 --version
+```
+
+3. Install the Python C development package in order to  build the C wrapper functions for python:
 
 ```
 sudo apt-get install python3-dev
 ```
 
-Verify the installlation:
+4. Verify the installlation:
 
 ```
 find /usr/include -name Python.h
 ```
 
-Then you check the python install path:
+5. Confirm Python include path:
 
 ```
 python3-config --includes
 ```
 
-If you see something like this, it should be used as part of the C compiler flags:
+1. Build the `space_packet_sender.c` program:
 
+```bash
+gcc -o space_packet_sender space_packet_sender.c $(python3-config --cflags --ldflags)
 ```
--I/usr/include/python3.8
-``` 
 
-### Example of using the sp_wrapper function
+If you get error that the linker cannot find the python development library because the `python3-config --ldflags` command does not include it, then you may need to explicitly to the flags. In the following example, python version was 3.10, as an example):
 
-
+```bash
+gcc -o space_packet_sender space_packet_sender.c $(python3-config --cflags --ldflags) -lpython3.10
+```
 
 
 
