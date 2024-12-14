@@ -1,4 +1,4 @@
-# SPP-UCP - A CCSDS Space Packet Protocol Implementation as an Underlying Communication Provider
+# SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider
 
 12/13/2024
 
