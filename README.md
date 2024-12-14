@@ -63,9 +63,9 @@ If you see something like this, it should be used as part of the C compiler flag
 -I/usr/include/python3.8
 ``` 
 
-### Using the setup.py script to build python extension module
+### Example of using the sp_wrapper function
 
-(see chatgpt description)
+
 
 
 
