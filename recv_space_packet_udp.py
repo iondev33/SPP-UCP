@@ -41,7 +41,7 @@ if __name__ == "__main__":
                 if sp_header is not None:
                     # Print the header fields
                     print("Space Packet Header Information:")
-                    print(f"  Packet Type: {'TC' if sp_header.packet_type == 0 else 'TM'}")
+                    print(f"  Packet Type: {'TC' if sp_header.packet_type == 1 else 'TM'}")
                     print(f"  Secondary Header Flag: {sp_header.sec_header_flag}")
                     print(f"  APID: {sp_header.apid}")
                     print(f"  Sequence Flags: {sp_header.seq_flags}")
