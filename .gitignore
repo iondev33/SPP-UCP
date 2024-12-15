@@ -6,3 +6,4 @@ space_packet_module/build/*
 __pycache__
 *.egg-info
 space_packet_sender
+space_packet_sender
