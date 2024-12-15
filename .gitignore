@@ -1,1 +1,8 @@
 .vscode/settings.json
+
+# skip the python virtual environment
+spp-ucp-env/*
+space_packet_module/build/*
+__pycache__
+*.egg-info
+space_packet_sender

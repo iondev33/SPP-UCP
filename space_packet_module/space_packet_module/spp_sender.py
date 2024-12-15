@@ -11,4 +11,5 @@ def build_space_packet(apid, seq_count, user_data):
         seq_flags=SequenceFlags.UNSEGMENTED
     )
     header_bytes = sp_header.pack()
-    return header_bytes + user_data
+    return bytes(header_bytes + user_data)  # Convert to bytes
+
