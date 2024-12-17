@@ -133,7 +133,20 @@ If it is available, then you just have to manually add the flag to the compiler.
 gcc -g -o space_packet_sender space_packet_sender.c $(python3.11-config --includes) $(python3.11-config --ldflags) $(python3.11-config --libs) -lpython3.11
 ```
 
+# Using the CMake build system
 
+## Build the Project
+
+```bash
+mkdir build && cd build
+cmake ..
+make
+```
+## Run the Test
+
+```bash
+ctest --output-on-failure
+```
 
 
 
