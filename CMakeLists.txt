@@ -43,9 +43,13 @@ include_directories(${Python3_INCLUDE_DIRS})
 # Add subdirectory for the C code
 add_subdirectory(src)
 
-# Build the executable and link it to the library and Python
+# Build the sender executable and link it to the library and Python
 add_executable(spptx src/spptx.c)
 target_link_libraries(spptx PRIVATE space_packet_sender Python3::Python)
+
+# Build the receiver application
+add_executable(spprx src/spprx.c)
+target_link_libraries(spprx PRIVATE space_packet_receiver Python3::Python)
 
 # Optional: Enable testing
 enable_testing()
