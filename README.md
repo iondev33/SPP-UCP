@@ -117,8 +117,15 @@ Again, from inside the virtual environment where the module is installed, run `p
 
 For Ubuntu
 ```bash
+sudo apt-get update
 sudo apt-get install python3.11-dev
 ```
+
+For MacOS
+```bash
+brew install python@3.11
+```
+Note: installing  python@3.11 will install its related development packages.
 
 For RHEL8:
 ```bash
@@ -127,18 +134,24 @@ sudo dnf module enable python:3.11
 sudo dnf install python3.11 python3.11-devel
 ```
 
-Verify installation of the development header:
-
-```bash
-ls /usr/include/python3.11/Python.h
-```
-ls /usr
-
 Confirm Python include path:
-
+For  Ubuntu:
 ```bash
 python3.11-config --includes
 python3.11-config --ldflags
+```
+
+For MacOS:
+```bash
+python3.11-config --includes
+python3.11-config --ldflags
+```
+
+Verify installation of the development header:
+
+For Ubuntu:
+```bash
+ls /usr/include/python3.11/Python.h
 ```
 
 Take note if the `-lpython3.11` is part of the include flag output. If not, make sure the shared library is avilable:
