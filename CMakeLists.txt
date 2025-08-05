@@ -7,11 +7,11 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 
 # Define virtual environment paths
 if (WIN32)
-    set(VENV_DIR "${CMAKE_SOURCE_DIR}/spp-ucp-env")
+    set(VENV_DIR "${CMAKE_SOURCE_DIR}/../SPPUCPENV")
     set(PIP_EXEC "${VENV_DIR}/Scripts/pip.exe")
     set(PYTHON_EXEC "${VENV_DIR}/Scripts/python.exe")
 else()
-    set(VENV_DIR "${CMAKE_SOURCE_DIR}/spp-ucp-env")
+    set(VENV_DIR "${CMAKE_SOURCE_DIR}/../SPPUCPENV")
     set(PIP_EXEC "${VENV_DIR}/bin/pip")
     set(PYTHON_EXEC "${VENV_DIR}/bin/python")
 endif()
@@ -50,6 +50,25 @@ target_link_libraries(spptx PRIVATE space_packet_sender Python3::Python)
 # Build the receiver application
 add_executable(spprx src/spprx.c)
 target_link_libraries(spprx PRIVATE space_packet_receiver Python3::Python)
+
+#find_package(Python3 COMPONENTS Interpretere Development REQUIRED)
+#find_package(PythonLibs REQUIRED)
+#include_directories(${PYTHON_INCLUDE_DIRS})
+# Build shared library
+add_library(spp_protocol SHARED
+    src/space_packet_sender.c
+    src/space_packet_receiver.c
+    src/spptxfunc.c
+    src/spprxfunc.c
+)
+
+target_include_directories(spp_protocol PRIVATE Python3::Python)
+target_link_libraries(spp_protocol PRIVATE Python3::Python)
+
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+target_include_directories(spp_protocol PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(spp_protocol PRIVATE ${PYTHON_LIBRARIES})
+
 
 # Optional: Enable testing
 enable_testing()
