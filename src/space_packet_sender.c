@@ -39,11 +39,12 @@ int is_valid_hex(const char *hex_payload)
 }
 
 char *build_space_packet(int apid, int seq_count, const char *hex_payload,
-                        int packet_type, int sec_header_flag, size_t *packet_size) 
+			 int packet_type, int sec_header_flag, size_t *packet_size, size_t payload_len) 
 {
     PyObject *pModule = NULL, *pFunc = NULL, *pArgs = NULL, *pValue = NULL,
              *pPacketType = NULL;
     char *byte_stream = NULL;
+    init_space_packet_sender();
 
     // Import Python Module
     pModule = PyImport_ImportModule("space_packet_module");
@@ -86,23 +87,10 @@ char *build_space_packet(int apid, int seq_count, const char *hex_payload,
         goto cleanup;
     }
 
-    // Convert HEX payload to bytes
-    size_t payload_len = strlen(hex_payload) / 2;
-    char *payload = malloc(payload_len);
-    if (!payload) 
-	{
-        perror("Failed to allocate memory for payload");
-        goto cleanup;
-    }
-    for (size_t i = 0; i < payload_len; i++) 
-	{
-        sscanf(&hex_payload[i * 2], "%2hhx", &payload[i]);
-    }
-
     // Build Python Arguments
-    pArgs = Py_BuildValue("(iiy#Oi)", apid, seq_count, payload, payload_len,
+    pArgs = Py_BuildValue("(iiy#Oi)", apid, seq_count, hex_payload, payload_len,
                           pPacketType, sec_header_flag);
-    free(payload);
+    //free(payload);
     if (!pArgs) 
 	{
         PyErr_Print();

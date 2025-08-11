@@ -60,17 +60,8 @@ int main(int argc, char *argv[])
             continue;
 
         size_t packet_size;
-        // TO DO: Fix this hard-coded size, remove as appropriate size is 151 bytes, adjust as needed
-	size_t testing_size = 151;
         char *packet = build_space_packet(apid, seq_count, hex_payload,
-					  packet_type, sec_header_flag, &packet_size, testing_size);
-
-	printf("Checking packet\n");
-	for(int i = 0;i<testing_size;i++)
-	  {
-	    printf("%02x",packet[i]);
-	  }
-	printf("\n");
+                                        packet_type, sec_header_flag, &packet_size);
         if (!packet) 
 		{
             fprintf(stderr, "Failed to build space packet\n");

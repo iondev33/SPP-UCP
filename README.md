@@ -60,16 +60,27 @@ Check python version again. Sometimes this may upgrade to a different version. I
 It might be a good idea to set up python virtual environment using required python version. For example, if the only python version on the host higher than 3.9 is 3.11, then use it to create the python environment, which will make it the default version in that environment.
 
 ```bash
-python3.11 -m venv spp-ucp-env
+# In your home directory, create virtual environment
+python3.11 -m venv SPPUCPENV
 ```
 
 Activate virtual environment:
 
 ```bash
-source ./spp-ucp-env/bin/activate
+source ./SPPUCPENV/bin/activate
 ```
 
+* You can deactivate the virtual environment by `deactivate`.
+
 To build actual CCSDS Space Packets, we use the `spacepackets` python package. See [documentation.](https://spacepackets.readthedocs.io/en/latest/examples.html)
+
+Check if the `spacepackets` package is installed:
+
+```bash
+python -c "import spacepackets; print('Module found')"
+```
+
+If you see the message "Module found", then the package is installed. If not, you need to install it.
 
 Install the `spacepackets` package using pip: 
 
@@ -77,19 +88,21 @@ Install the `spacepackets` package using pip:
 python -m pip install spacepackets
 ```
 
-## Example of using the `spacepackets` package
+## Test using the `spacepackets` package
 
 The `send_space_packet_udp.py` script will construct a spacepacket and send it via UDP. The `recv_space_packet_udp.py` script will receive a packet over UDP, parse it, and display its content.
 
 Start the receive script:
 
 ```bash
+cd python
 python recv_space_packet_udp.py 127.0.0.1 5000
 ```
 
-Send a spacepacket:
+Send a spacepacket with APID 250, sequence count 1, payload "01020304" to localhost on port 5000. Make sure the receive script is running before sending the packet.
 
 ```bash
+cd python
 python send_space_packet_udp.py --apid 250 --seq_count 1 --payload "01020304" 127.0.0.1 5000
 ```
 
@@ -102,7 +115,7 @@ cd ./space_packet_module
 python -m pip install .
 ```
 
-Confirm it is installed from any directory (other than where the modules is stored.)
+Confirm it is installed by running the following command from inside the virtual environment where the module is installed:
 
 ```bash
 # Go to a different directory and run:
@@ -113,7 +126,7 @@ Install the Python C development package in order to  build the C wrapper functi
 
 This must be install on the host so you need to specify the exact version. So you need to specify python3.11-dev instead of just python3-dev.
 
-Again, from inside the virtual environment where the module is installed, run `python --version' to confirm the actual version of python in the virtual environment. For example it is 3.11. Then install the development package specific to that version:
+Again, from inside the virtual environment where the module is installed, run `python --version` to confirm the actual version of python in the virtual environment. For example if it is 3.11, then install the development package specific to that version:
 
 For Ubuntu
 ```bash
@@ -166,6 +179,7 @@ If it is available, then you just have to manually add the flag to the compiler.
 
 ```bash
 # Compile command that manually adds -lpython3.11 at the end
+# Go to the "src" folder where the space_packet_sender.c is located
 gcc -g -o space_packet_sender space_packet_sender.c $(python3.11-config --includes) $(python3.11-config --ldflags) $(python3.11-config --libs) -lpython3.11
 ```
 
@@ -183,6 +197,8 @@ make
 ```bash
 ctest --output-on-failure
 ```
+
+
 
 
 
