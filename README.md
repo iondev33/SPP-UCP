@@ -43,7 +43,7 @@ With that in mind, we design the SPP CLA prototype in ION with the following in 
 The Space Packet Protocol provider library is based on the `spacepackets` [python package](https://pypi.org/project/spacepackets/), which requires python version >= 3.9. Check the version:
 
 ```bash
-python --version
+python3 --version
 ```
 
 If you don't want to upgrade to higher python version, please install and enable a higher version (but not as default.) Example in RHEL:
@@ -55,13 +55,13 @@ sudo dnf install python39
 
 This will install Python 3.9 as /usr/bin/python3.9 without affecting the default /usr/bin/python3 (Python 3.6).
 
-Check python version again. Sometimes this may upgrade to a different version. In the RHEL8 example, the python version was actually upgraded to 3.11.
+Check python version again. Sometimes this may upgrade to a different version. In the RHEL8 example, the python version was actually upgraded to 3.12.
 
-It might be a good idea to set up python virtual environment using required python version. For example, if the only python version on the host higher than 3.9 is 3.11, then use it to create the python environment, which will make it the default version in that environment.
+It might be a good idea to set up python virtual environment using required python version. For example, if the only python version on the host higher than 3.9 is 3.12, then use it to create the python environment, which will make it the default version in that environment.
 
 ```bash
 # In your home directory, create virtual environment
-python3.11 -m venv SPPUCPENV
+python3 -m venv SPPUCPENV
 ```
 
 Activate virtual environment:
@@ -74,21 +74,26 @@ source ./SPPUCPENV/bin/activate
 
 To build actual CCSDS Space Packets, we use the `spacepackets` python package. See [documentation.](https://spacepackets.readthedocs.io/en/latest/examples.html)
 
-Check if the `spacepackets` package is installed:
+Within the new virtual environment, `python` (without the '3') should simply default to the python3 version you used to create the environment. You can also verify by path that the `python` command is now running within the environment:
+
+```bash
+python --version
+which python
+```
+
+Now check if the `spacepackets` package is installed:
 
 ```bash
 python -c "import spacepackets; print('Module found')"
 ```
 
-If you see the message "Module found", then the package is installed. If not, you need to install it.
+If you see the message "Module found", then the package is installed. If not, you need to install it. If not, install the `spacepackets` package using pip: 
 
-Install the `spacepackets` package using pip: 
-
-```
+```bash
 python -m pip install spacepackets
 ```
 
-## Test using the `spacepackets` package
+## Testing the Python `spacepackets` package
 
 The `send_space_packet_udp.py` script will construct a spacepacket and send it via UDP. The `recv_space_packet_udp.py` script will receive a packet over UDP, parse it, and display its content.
 
@@ -106,9 +111,9 @@ cd python
 python send_space_packet_udp.py --apid 250 --seq_count 1 --payload "01020304" 127.0.0.1 5000
 ```
 
-## Build the `space_packet_sender.c` Program
+## Testing the C Space Packet Library
 
-Install the `space_packet_module`.
+To access space packet from C, we need to install the `space_packet_module` python module we created:
 
 ``` bash
 cd ./space_packet_module
@@ -126,73 +131,88 @@ Install the Python C development package in order to  build the C wrapper functi
 
 This must be install on the host so you need to specify the exact version. So you need to specify python3.11-dev instead of just python3-dev.
 
-Again, from inside the virtual environment where the module is installed, run `python --version` to confirm the actual version of python in the virtual environment. For example if it is 3.11, then install the development package specific to that version:
+Again, from inside the virtual environment where the module is installed, run `python --version` to confirm the actual version of python in the virtual environment. For example if it is 3.12, then install the development package specific to that version:
 
 For Ubuntu
 ```bash
 sudo apt-get update
-sudo apt-get install python3.11-dev
+sudo apt-get install python3.12-dev
 ```
 
 For MacOS
 ```bash
-brew install python@3.11
+brew install python@3.12
 ```
-Note: installing  python@3.11 will install its related development packages.
+Note: installing  python@3.12 will install its related development packages.
 
 For RHEL8:
 ```bash
 sudo subscription-manager repos --enable codeready-builder-for-rhel-8-$(arch)-rpms
-sudo dnf module enable python:3.11
-sudo dnf install python3.11 python3.11-devel
+sudo dnf module enable python:3.12
+sudo dnf install python3.12 python3.12-devel
 ```
 
 Confirm Python include path:
 For  Ubuntu:
 ```bash
-python3.11-config --includes
-python3.11-config --ldflags
+python3.12-config --includes
+python3.12-config --ldflags
 ```
 
 For MacOS:
 ```bash
-python3.11-config --includes
-python3.11-config --ldflags
+python3.12-config --includes
+python3.12-config --ldflags
 ```
 
 Verify installation of the development header:
 
 For Ubuntu:
 ```bash
-ls /usr/include/python3.11/Python.h
+ls /usr/include/python3.12/Python.h
 ```
 
-Take note if the `-lpython3.11` is part of the include flag output. If not, make sure the shared library is avilable:
+Take note if the `-lpython3.12` is part of the include flag output. If not, make sure the shared library is avilable:
 
 ```bash
-find /usr -name "libpython3.11.so"
+find /usr -name "libpython3.12.so"
 ```
 
 If it is available, then you just have to manually add the flag to the compiler.
 
-## Build the `space_packet_sender.c` Program
+### Build the Test Program
+
+The C test programs for Space Packet are `spptx.c` and `spprx.c`. You can buidl them this way: 
+
 
 ```bash
-# Compile command that manually adds -lpython3.11 at the end
-# Go to the "src" folder where the space_packet_sender.c is located
-gcc -g -o space_packet_sender space_packet_sender.c $(python3.11-config --includes) $(python3.11-config --ldflags) $(python3.11-config --libs) -lpython3.11
+# Go to "src" folder
+# Build the transmit program: spptx
+gcc -g -o spptx spptx.c space_packet_sender.c $(python3.12-config --includes) $(python3.12-config --ldflags) $(python3.12-config --libs) -lpython3.12
+
+# Build the receiving program: spprx
+gcc -g -o spprx spprx.c space_packet_receiver.c
 ```
+### Running the test program
 
-# Using the CMake build system
+Start the receiver to receive at 127.0.0.1:5000:
+`./spprx 127.0.0.1 5000`
 
-## Build the Project
+Start the sender to send to 127.0.0.1:5000 with APID of 250, type 1 space packet, no secondary header ('0'), and a maximum payload of 10 bytes:
+`./spptx 127.0.0.1 5000 250 1 0 10`
+
+## Using the CMake build system
+
+We have updated the prototype of the build_space_packet call a little bit, try to see if that affects the CMake build.
+
+### Build the Project
 
 ```bash
 mkdir build && cd build
 cmake ..
 make
 ```
-## Run the Test
+### Run the Test
 
 ```bash
 ctest --output-on-failure

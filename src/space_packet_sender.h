@@ -6,7 +6,7 @@
 void init_space_packet_sender(void);
 void finalize_space_packet_sender(void);
 int is_valid_hex(const char *hex_payload);
-char *build_space_packet(int apid, int seq_count, const char *hex_payload,
-			 int packet_type, int sec_header_flag, size_t *packet_size, size_t);
+char *build_space_packet(int apid, int seq_count, const unsigned char *payload_data,
+	int packet_type, int sec_header_flag, size_t *packet_size, size_t payload_len);
 
 #endif // SPACE_PACKET_SENDER_H
