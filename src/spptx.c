@@ -6,6 +6,27 @@
 #include <ctype.h>
 #include "space_packet_sender.h"
 
+// Verify HEX input
+int is_valid_hex(const char *hex_payload)
+{
+    size_t len = strlen(hex_payload);
+    if (len % 2 != 0)
+	{
+        fprintf(stderr, "Payload length must be even\n");
+        return 0;
+    }
+    for (size_t i = 0; i < len; i++)
+	{
+        if (!isxdigit(hex_payload[i]))
+		{
+            fprintf(stderr, "Invalid character in payload: %c\n",
+				hex_payload[i]);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // Function to convert a single hex character to its integer value
 int hex_char_to_int(char c) {
     if (c >= '0' && c <= '9') return c - '0';

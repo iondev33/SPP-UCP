@@ -180,10 +180,9 @@ find /usr -name "libpython3.12.so"
 
 If it is available, then you just have to manually add the flag to the compiler.
 
-### Build the Test Program
+### Build the Test C Program
 
 The C test programs for Space Packet are `spptx.c` and `spprx.c`. You can buidl them this way: 
-
 
 ```bash
 # Go to "src" folder
@@ -193,13 +192,25 @@ gcc -g -o spptx spptx.c space_packet_sender.c $(python3.12-config --includes) $(
 # Build the receiving program: spprx
 gcc -g -o spprx spprx.c space_packet_receiver.c
 ```
-### Running the test program
+### Running The Test Programs
 
-Start the receiver to receive at 127.0.0.1:5000:
+Start the receiver to liste at 127.0.0.1:5000:
 `./spprx 127.0.0.1 5000`
 
-Start the sender to send to 127.0.0.1:5000 with APID of 250, type 1 space packet, no secondary header ('0'), and a maximum payload of 10 bytes:
+Start the sender to send space packet to 127.0.0.1:5000 with APID of 250, type 1 space packet, no secondary header ('0'), and a maximum payload of 10 bytes:
 `./spptx 127.0.0.1 5000 250 1 0 10`
+
+You can also build the `spptxpipe` program - a modified version of `spptx` that allows you to pipe data in the following fashion:
+
+```bash
+gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --includes) $(python3.12-config --ldflags) $(python3.12-config --libs) -lpython3.12
+```
+
+Run it:
+```bash
+cat hex_payload.txt | ./spptxpipe <IP> <PORT> <APID> <TYPE> <SEC_FLAG> <Payload Size>
+```
+
 
 ## Using the CMake build system
 

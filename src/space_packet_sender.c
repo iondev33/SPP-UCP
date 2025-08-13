@@ -18,26 +18,6 @@ void finalize_space_packet_sender()
     Py_Finalize();
 }
 
-int is_valid_hex(const char *hex_payload)
-{
-    size_t len = strlen(hex_payload);
-    if (len % 2 != 0)
-	{
-        fprintf(stderr, "Payload length must be even\n");
-        return 0;
-    }
-    for (size_t i = 0; i < len; i++)
-	{
-        if (!isxdigit(hex_payload[i]))
-		{
-            fprintf(stderr, "Invalid character in payload: %c\n",
-				hex_payload[i]);
-            return 0;
-        }
-    }
-    return 1;
-}
-
 char *build_space_packet(int apid, int seq_count, const unsigned char *payload_data,
 			 int packet_type, int sec_header_flag, size_t *packet_size, size_t payload_len)
 {

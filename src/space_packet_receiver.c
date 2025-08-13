@@ -16,8 +16,9 @@ int parse_space_packet(const char *packet, size_t packet_size, SpacePacketHeader
     header->data_len = ((unsigned char)packet[4] << 8) | (unsigned char)packet[5] + 1;
     
     //printf("Got packet size hmm %lu %lu\n",packet_size,header->data_len);
-    // Hackishly fix this for now
-    header->data_len -= 6;
+    // TO DO: review what is the purpose of reducing header data by 6.
+    // TO DO: Hackishly fix this for now
+    // header->data_len -= 6;
     if (packet_size < header->data_len + 6) {
         return -2; // Incomplete packet
     }
