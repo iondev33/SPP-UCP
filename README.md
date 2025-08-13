@@ -192,10 +192,11 @@ gcc -g -o spptx spptx.c space_packet_sender.c $(python3.12-config --includes) $(
 # Build the receiving program: spprx
 gcc -g -o spprx spprx.c space_packet_receiver.c
 ```
+
 ### Running The Test Programs
 
-Start the receiver to liste at 127.0.0.1:5000:
-`./spprx 127.0.0.1 5000`
+Start the receiver to listen to port 5000:
+`./spprx 5000`
 
 Start the sender to send space packet to 127.0.0.1:5000 with APID of 250, type 1 space packet, no secondary header ('0'), and a maximum payload of 10 bytes:
 `./spptx 127.0.0.1 5000 250 1 0 10`
@@ -208,7 +209,7 @@ gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --incl
 
 Run it:
 ```bash
-cat hex_payload.txt | ./spptxpipe <IP> <PORT> <APID> <TYPE> <SEC_FLAG> <Payload Size>
+cat hex_payload.txt | ./spptxpipe 127.0.0.1 5000 250 0 0 16
 ```
 
 
