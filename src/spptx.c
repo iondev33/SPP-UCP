@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     // Initialize Python interpreter
     init_space_packet_sender();
 
-    char hex_input[2 * payload_size + 1]; // Buffer for hex string input
+    char hex_input[2 * payload_size + 2]; // Buffer for hex string input
     unsigned char *payload_buffer = calloc(1, payload_size);
     if (!payload_buffer) {
         perror("Failed to allocate payload buffer");

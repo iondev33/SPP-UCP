@@ -209,7 +209,7 @@ gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --incl
 
 Run it:
 ```bash
-cat hex_payload.txt | ./spptxpipe 127.0.0.1 5000 250 0 0 16
+cat hex_payload.txt | ./spptxpipe 127.0.0.1 5000 250 0 0 8
 ```
 
 
