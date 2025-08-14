@@ -24,7 +24,6 @@ char *build_space_packet(int apid, int seq_count, const unsigned char *payload_d
     PyObject *pModule = NULL, *pFunc = NULL, *pArgs = NULL, *pValue = NULL,
              *pPacketType = NULL;
     char *byte_stream = NULL;
-    init_space_packet_sender();
 
     // Import Python Module
     pModule = PyImport_ImportModule("space_packet_module");

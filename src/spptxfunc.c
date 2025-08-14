@@ -18,8 +18,7 @@ int packet_request(unsigned char *hex_payload, int apid, int seq_count, int pack
 
     const char ip[] = "192.168.1.203";    
 
-    // Initialize Python interpreter
-    init_space_packet_sender();
+    // NOTE: the calling application should initialize Python interpreter: init_space_packet_sender();
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) 
@@ -61,8 +60,6 @@ int packet_request(unsigned char *hex_payload, int apid, int seq_count, int pack
     seq_count++;
 
     close(sock);
-    // Finalize Python interpreter
-    finalize_space_packet_sender();
 
     return bytes_written;
 }
