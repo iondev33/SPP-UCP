@@ -115,11 +115,32 @@ int main(int argc, char *argv[])
     // Read from stdin until EOF (end-of-file)
     while (fgets(hex_input, sizeof(hex_input), stdin))
     {
-        // Remove newline character
-        hex_input[strcspn(hex_input, "\n")] = 0;
+        // Check if the input was too long and flush the remainder of the line from stdin
+        if (strchr(hex_input, '\n') == NULL) {
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+        } else {
+            // If input fit, just remove the newline character
+            hex_input[strcspn(hex_input, "\n")] = 0;
+        }
 
-        if (!is_valid_hex(hex_input))
+        // Check for exit condition AFTER cleaning the input
+        if (strcmp(hex_input, "exit") == 0) {
+            break;
+        }
+
+        // --- THIS IS THE KEY ---
+        // Manually truncate the string if it's longer than the max allowed hex characters
+        size_t max_hex_len = 2 * payload_size;
+        if (strlen(hex_input) > max_hex_len) {
+            hex_input[max_hex_len] = '\0';
+            printf("Input truncated to: %s\n", hex_input); // Optional: inform the user
+        }
+        // --- END KEY ---
+
+        if (!is_valid_hex(hex_input)) {
             continue;
+        }
         
         // Clear the buffer with zeros before copying new data
         memset(payload_buffer, 0, payload_size);
