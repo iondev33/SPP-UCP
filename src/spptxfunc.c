@@ -9,7 +9,7 @@
 
 static int seq_count = 0;
 
-int packet_request(unsigned char *hex_payload, int apid, int seq_count, int packet_type, int sec_header_flag, size_t to_send_bytes)
+int packet_request(unsigned char *byte_payload, int apid, int seq_count, int packet_type, int sec_header_flag, size_t to_send_bytes)
 {
     int port = 55554;
     char* packet = NULL;
@@ -39,7 +39,7 @@ int packet_request(unsigned char *hex_payload, int apid, int seq_count, int pack
         return -1;
     }
 
-    packet = build_space_packet(apid, seq_count, (const char*)hex_payload,
+    packet = build_space_packet(apid, seq_count, (const char*)byte_payload,
     				packet_type, sec_header_flag, &packet_size, to_send_bytes);
 
 
