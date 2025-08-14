@@ -230,7 +230,36 @@ make
 ctest --output-on-failure
 ```
 
+### Using the library
 
+A template code writing an application:
+
+```c++
+#include "space_packet_sender.h"
+#include "space_packet_receiver.h"
+#include <stdio.h>
+
+int main(void) {
+    // 1. Initialize the Python interpreter ONCE at the start of the application.
+    init_space_packet_sender();
+    printf("Python Interpreter Initialized.\n");
+
+    // --- Main application logic ---
+    // The application can now call the library functions as many times as needed.
+    // Each call is fast because the interpreter is already running.
+    for (int i = 0; i < 100; i++) {
+        // packet_request(...);
+        // packet_indication(...);
+    }
+    // --- End of main logic ---
+
+    // 2. Finalize the Python interpreter ONCE before the application exits.
+    finalize_space_packet_sender();
+    printf("Python Interpreter Finalized.\n");
+
+    return 0;
+}
+```
 
 
 
