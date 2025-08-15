@@ -1,6 +1,10 @@
 # Space Packet Protocol (SPP) UCP Library
 
-A C library for CCSDS Space Packet Protocol with Python integration, providing both interactive tools and a shared library API for space packet transmission and reception.
+8/15/2025
+
+This is a C library for CCSDS Space Packet Protocol with Python integration, providing both interactive tools and a shared library API for space packet transmission and reception.
+
+This library is not intended as an operational SPP provider, only as a means to support SPP-CLA testing for a Bundle Protocol Agent.
 
 ## Overview
 
@@ -59,8 +63,6 @@ spp-ucp/
 
 # SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider
 
-08/15/2025
-
 ## Introduction
 
 This repository contains the source code for the SPP-UCP project, which is a CCSDS Space Packet Protocol (SPP) implementation as an Underlying Communication Provider (UCP) designed to run under Bundle Protocol v7 to test the SPP CLA implementation according to Annex B of the CCSDS Bundle Protocol Version 7 Orange Book.
@@ -96,6 +98,20 @@ With that in mind, we design the SPP CLA prototype in ION with the following in 
    - Should a future SPP provider have an interface with the lower layer (e.g., CCSDS frames or spacecraft/ground station comm systems), then the UDP-delivery mechanism in the CLA can be either removed, disable, or bypassed.
 
 ![SPP CLA Prototype in ION](./spp-cla-prototype.png)
+
+### SPP-UCP - an SPP Provider Emulation
+
+This repo implements provides two API functions to SPP User:
+
+* `packet_request` - defined in `spptxfunc.c` to accept request to send a payload with given APID and other configuration parameters, build the space packet, and send it via UDP to a hardcoded IP address/port:
+
+* `packet_indication` - defined in `spprxfunc.c` to accept indication of received space packets from a specific interface port,extract relevant information, and pass it to the SPP CLA for further processing.
+
+### Multiple SPP-UCP Instance
+
+This initial prototype (in conjunction with the release ION 4.1.4) of the SPP-UCP library will have hardcoded IP/port assignment for transmit and receive. So each SPP bi-directional provider connection with another node will need a separately compiled shard library. 
+
+If needed, this will be updated in future release to support configurable IP/port address so one single shared library can be used for multiple connections.
 
 ## Install Dependencies
 
