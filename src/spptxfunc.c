@@ -7,8 +7,6 @@
 
 #define MAX_PAYLOAD_SIZE 1024
 
-static int seq_count = 0;
-
 int packet_request(unsigned char *byte_payload, int apid, int seq_count, int packet_type, int sec_header_flag, size_t to_send_bytes)
 {
     int port = 55554;
@@ -57,7 +55,6 @@ int packet_request(unsigned char *byte_payload, int apid, int seq_count, int pac
     }
 
     free(packet);
-    seq_count++;
 
     close(sock);
 
