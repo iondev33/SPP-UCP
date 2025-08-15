@@ -51,6 +51,10 @@ target_link_libraries(spptx PRIVATE space_packet_sender Python3::Python)
 add_executable(spprx src/spprx.c)
 target_link_libraries(spprx PRIVATE space_packet_receiver Python3::Python)
 
+# Build the sender pipe executable
+add_executable(spptxpipe src/spptxpipe.c)
+target_link_libraries(spptxpipe PRIVATE space_packet_sender Python3::Python)
+
 #find_package(Python3 COMPONENTS Interpretere Development REQUIRED)
 #find_package(PythonLibs REQUIRED)
 #include_directories(${PYTHON_INCLUDE_DIRS})
