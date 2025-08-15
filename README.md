@@ -1,6 +1,65 @@
+# Space Packet Protocol (SPP) UCP Library
+
+A C library for CCSDS Space Packet Protocol with Python integration, providing both interactive tools and a shared library API for space packet transmission and reception.
+
+## Overview
+
+This library implements the CCSDS (Consultative Committee for Space Data Systems) Space Packet Protocol, allowing applications to:
+
+- Build and parse CCSDS space packets
+- Send and receive packets over UDP networks
+- Integrate with Python-based space packet modules
+- Provide both interactive tools and programmatic APIs
+
+## Features
+
+- **CCSDS Compliant**: Implements standard space packet format
+- **Python Integration**: Uses Python modules for packet construction
+- **UDP Communication**: Network transmission over UDP
+- **Dual APIs**: Both low-level functions and high-level shared library interface
+- **Interactive Tools**: Command-line utilities for testing and development
+- **Comprehensive Testing**: Full test suite with unit and integration tests
+
+## Project Structure
+
+```
+spp-ucp/
+├── CMakeLists.txt
+├── README.md
+├── src/
+│   ├── space_packet_sender.h
+│   ├── space_packet_sender.c      # Core packet building functions
+│   ├── space_packet_receiver.h
+│   ├── space_packet_receiver.c    # Core packet parsing functions
+│   ├── spptxfunc.c               # Shared library sender API
+│   ├── spprxfunc.c               # Shared library receiver API
+│   ├── spptx.c                   # Interactive sender tool
+│   ├── spprx.c                   # Interactive receiver tool
+│   └── spptxpipe.c               # Pipe-based sender tool
+├── tests/
+│   ├── test_basic_api.c          # Basic API tests
+│   ├── test_shared_api.c         # Shared library API tests
+│   └── test_error_cases.c        # Error handling tests
+├── python/
+│   ├── space_packet_module.py    # Python packet implementation
+│   ├── requirements.txt          # Python dependencies
+│   └── tests/
+│       └── test_send_recv.py     # Python-level tests
+└── build/                        # Build directory (created by CMake)
+```
+
+## Building the Project
+
+### Prerequisites
+
+- CMake 3.15 or higher
+- C compiler (GCC, Clang, or MSVC)
+- Python 3.9 or higher (required by spacepacket python module)
+- Python development headers
+
 # SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider
 
-12/13/2024
+08/15/2025
 
 ## Introduction
 
@@ -180,7 +239,7 @@ find /usr -name "libpython3.12.so"
 
 If it is available, then you just have to manually add the flag to the compiler.
 
-### Build the Test C Program
+### Build C Test Untilities Manually
 
 The C test programs for Space Packet are `spptx.c` and `spprx.c`. You can buidl them this way: 
 
@@ -191,75 +250,197 @@ gcc -g -o spptx spptx.c space_packet_sender.c $(python3.12-config --includes) $(
 
 # Build the receiving program: spprx
 gcc -g -o spprx spprx.c space_packet_receiver.c
-```
 
-### Running The Test Programs
-
-Start the receiver to listen to port 5000:
-`./spprx 5000`
-
-Start the sender to send space packet to 127.0.0.1:5000 with APID of 250, type 1 space packet, no secondary header ('0'), and a maximum payload of 10 bytes:
-`./spptx 127.0.0.1 5000 250 1 0 10`
-
-You can also build the `spptxpipe` program - a modified version of `spptx` that allows you to pipe data in the following fashion:
-
-```bash
+# Build the transmit program designed for piped input from stdin
 gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --includes) $(python3.12-config --ldflags) $(python3.12-config --libs) -lpython3.12
 ```
 
-Run it:
-```bash
-cat hex_payload.txt | ./spptxpipe 127.0.0.1 5000 250 0 0 8
-```
-
-
-## Using the CMake build system
-
-We have updated the prototype of the build_space_packet call a little bit, try to see if that affects the CMake build.
-
-### Build the Project
+### Build Using CMake
 
 ```bash
-mkdir build && cd build
+# Clone the repository
+git clone <repository-url>
+cd spp-ucp
+
+# Create build directory
+mkdir build
+cd build
+
+# Configure and build
 cmake ..
 make
-```
-### Run the Test
 
+# The virtual environment and Python dependencies will be set up automatically
+```
+
+### Build Targets
+
+The build creates several executables and libraries:
+
+- **`spptx`**: Interactive packet sender
+- **`spprx`**: Interactive packet receiver  
+- **`spptxpipe`**: Pipe-based packet sender
+- **`libspp_protocol.so`**: Shared library for external applications
+- **Test executables**: Various test programs (see Testing section)
+
+## Usage
+
+### Interactive Tools
+
+#### Packet Receiver (`spprx`) - start the receiver first!
 ```bash
-ctest --output-on-failure
+./spprx <PORT>
+
+# Example:
+./spprx 55554
+# Will listen for incoming packets and display parsed content
 ```
 
-### Using the library
+#### Packet Sender (`spptx`)
+```bash
+./spptx <IP> <PORT> <APID> <PACKET_TYPE> <SEC_HEADER_FLAG> <PAYLOAD_SIZE>
 
-A template code writing an application:
+# Example:
+./spptx 192.168.1.203 55554 123 0 0 16
+# Then enter hex payload when prompted: 48656c6c6f20576f726c64
+```
 
-```c++
+#### Packet Sender (`spptxpipe`)
+```bash
+# Each line in the file is a single packet payload
+# Example
+cat hex_payload.txt | ./spptxpipe 127.0.0.1 55554 250 0 0 8
+```
+
+### Shared Library API
+
+The shared library provides two main functions:
+
+#### `packet_request` - Send a packet
+```c
 #include "space_packet_sender.h"
+
+int packet_request(unsigned char *byte_payload, int apid, int seq_count, 
+                   int packet_type, int sec_header_flag, size_t to_send_bytes);
+
+// Example usage:
+init_space_packet_sender();
+unsigned char payload[] = "Hello World";
+int result = packet_request(payload, 123, 1, 0, 0, strlen(payload));
+finalize_space_packet_sender();
+```
+
+#### `packet_indication` - Receive a packet
+```c
 #include "space_packet_receiver.h"
-#include <stdio.h>
 
-int main(void) {
-    // 1. Initialize the Python interpreter ONCE at the start of the application.
-    init_space_packet_sender();
-    printf("Python Interpreter Initialized.\n");
+size_t packet_indication(char *buffer, int *apid);
 
-    // --- Main application logic ---
-    // The application can now call the library functions as many times as needed.
-    // Each call is fast because the interpreter is already running.
-    for (int i = 0; i < 100; i++) {
-        // packet_request(...);
-        // packet_indication(...);
-    }
-    // --- End of main logic ---
-
-    // 2. Finalize the Python interpreter ONCE before the application exits.
-    finalize_space_packet_sender();
-    printf("Python Interpreter Finalized.\n");
-
-    return 0;
+// Example usage:
+char buffer[1024];
+int apid;
+size_t length = packet_indication(buffer, &apid);
+if (length > 0) {
+    printf("Received packet from APID %d: %s\n", apid, buffer);
 }
 ```
 
+### Core API Functions
+
+For direct integration, use the core functions:
+
+```c
+// Building packets
+char *build_space_packet(int apid, int seq_count, const unsigned char *payload_data,
+                        int packet_type, int sec_header_flag, size_t *packet_size, 
+                        size_t payload_len);
+
+// Parsing packets
+int parse_space_packet(const unsigned char *packet, size_t packet_size, 
+                      SpacePacketHeader *header, unsigned char *payload);
+```
+
+## Testing
+
+### Test Suite Overview
+
+The project includes a comprehensive test suite covering:
+
+#### Test Categories
+
+1. **Basic API Tests** (`test_basic_api.c`)
+   - Tests `build_space_packet` and `parse_space_packet` functions
+   - Multiple packet types and parameter combinations
+   - Data integrity verification
+
+2. **Shared API Tests** (`test_shared_api.c`)
+   - Tests `packet_request` and `packet_indication` functions
+   - Uses localhost (127.0.0.1) for testing instead of hardcoded IPs
+   - Parameter validation
+   - Error handling ("connection refused" errors expected when no receiver running)
+
+4. **Error Cases Tests** (`test_error_cases.c`)
+  
+   - Invalid parameter values
+   - Malformed packet parsing
+   - Boundary value testing
+
+### Running Tests
+
+#### Build and Run All Tests
+```bash
+cd build
+make
+ctest --output-on-failure --verbose
+```
+
+#### Run Individual Test Categories
+```bash
+# Basic API tests
+ctest -R BasicAPITest --verbose
+
+# Shared API tests  
+ctest -R SharedAPITest --verbose
+
+# Error handling tests
+ctest -R ErrorCasesTest --verbose
+```
+
+#### Custom Test Target
+```bash
+# Run all tests with custom target
+make run_all_tests
+```
+
+### Test Configuration
+
+Tests are configured with:
+- **Timeouts**: 30 seconds for all tests
+- **Labels**: `basic`, `shared`, `error` for selective execution
+- **Error Handling**: Graceful handling of expected network failures
+
+### Expected Test Behavior
+
+#### Successful Output Example
+```
+=== Basic API Tests ===
+Testing build_space_packet and parse_space_packet...
+Built packet of size: 19
+Parsed header - APID: 123, SeqCount: 42, DataLen: 13
+✓ Basic API test passed
+=== All Basic API Tests Passed! ===
+```
+
+**Note**: "Connection refused" errors are expected when no receiver is running and do not indicate test failure.
+
+### Debug Mode
+
+Build with debug symbols for better error reporting:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make
+```
 
 
+## License
+TBD

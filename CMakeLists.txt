@@ -77,10 +77,70 @@ target_link_libraries(spp_protocol PRIVATE ${PYTHON_LIBRARIES})
 # Optional: Enable testing
 enable_testing()
 add_test(
-    NAME SendRecvSpacePacketTest
+    NAME SendRecvSpacePacketTest-SPP-Module
     COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_SOURCE_DIR}/python/tests -p "test_send_recv.py"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python
 )
 
+# CMake Tests for Space Packet Protocol Library
+# Add this to your main CMakeLists.txt after the existing test
 
+# Create a tests directory structure
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 
+# Test 1: Basic API Test - build_space_packet and parse_space_packet
+add_executable(test_basic_api tests/test_basic_api.c)
+target_link_libraries(test_basic_api PRIVATE space_packet_sender space_packet_receiver Python3::Python)
+target_include_directories(test_basic_api PRIVATE src)
+
+# Test 2: Shared Library API Test - packet_request and packet_indication
+add_executable(test_shared_api tests/test_shared_api.c)
+target_link_libraries(test_shared_api PRIVATE spp_protocol Python3::Python)
+target_include_directories(test_shared_api PRIVATE src)
+
+# Test 3: Error handling and edge cases
+add_executable(test_error_cases tests/test_error_cases.c)
+target_link_libraries(test_error_cases PRIVATE space_packet_sender space_packet_receiver Python3::Python)
+target_include_directories(test_error_cases PRIVATE src)
+
+# Register the tests with CTest
+add_test(
+    NAME BasicAPITest
+    COMMAND test_basic_api
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+add_test(
+    NAME SharedAPITest
+    COMMAND test_shared_api
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+add_test(
+    NAME ErrorCasesTest
+    COMMAND test_error_cases
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# Set test properties
+set_tests_properties(BasicAPITest PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;basic"
+)
+
+set_tests_properties(SharedAPITest PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;shared"
+)
+
+set_tests_properties(ErrorCasesTest PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;error"
+)
+
+# Create a custom target to run all tests
+add_custom_target(run_all_tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+    DEPENDS test_basic_api test_shared_api test_error_cases
+    COMMENT "Running all Space Packet Protocol tests"
+)
