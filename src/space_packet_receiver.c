@@ -3,9 +3,26 @@
 #include <stdio.h>
 
 int parse_space_packet(const unsigned char *packet, size_t packet_size, SpacePacketHeader *header, unsigned char *payload) {
+    // Parameter validation - check for NULL pointers
+    if (packet == NULL) {
+        fprintf(stderr, "Error: packet parameter is NULL\n");
+        return SPP_ERROR_NULL_PACKET;
+    }
+    
+    if (header == NULL) {
+        fprintf(stderr, "Error: header parameter is NULL\n");
+        return SPP_ERROR_NULL_HEADER;
+    }
+    
+    if (payload == NULL) {
+        fprintf(stderr, "Error: payload parameter is NULL\n");
+        return SPP_ERROR_NULL_PAYLOAD_BUFFER;
+    }
+    
     // Check for minimum header size
     if (packet_size < 6) {
-        return -1; // Packet too short
+        fprintf(stderr, "Error: packet too short (%zu bytes, minimum 6 required)\n", packet_size);
+        return SPP_ERROR_PACKET_TOO_SHORT;
     }
 
     // Parse the primary header fields
@@ -24,12 +41,13 @@ int parse_space_packet(const unsigned char *packet, size_t packet_size, SpacePac
 
     // Integrity check: ensure the received packet size matches the expected size
     if (packet_size < header->data_len + 6) {
-        return -2; // Incomplete packet
+        fprintf(stderr, "Error: incomplete packet - expected %zu bytes, got %zu bytes\n", 
+                header->data_len + 6, packet_size);
+        return SPP_ERROR_INCOMPLETE_PACKET;
     }
 
     // Copy the payload into the provided buffer
     memcpy(payload, packet + 6, header->data_len);
 
-    return 0; // Success
+    return SPP_SUCCESS;
 }
-

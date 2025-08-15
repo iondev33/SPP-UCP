@@ -3,6 +3,14 @@
 
 #include <stdlib.h> // For size_t
 
+// Error codes for parse_space_packet function
+#define SPP_SUCCESS 0
+#define SPP_ERROR_PACKET_TOO_SHORT -1
+#define SPP_ERROR_INCOMPLETE_PACKET -2
+#define SPP_ERROR_NULL_PACKET -3
+#define SPP_ERROR_NULL_HEADER -4
+#define SPP_ERROR_NULL_PAYLOAD_BUFFER -5
+
 // Represents the header of a CCSDS Space Packet
 typedef struct {
     int version;

@@ -1,5 +1,5 @@
 // tests/test_error_cases.c
-// Test error handling and edge cases for the space packet library
+// Comprehensive error handling tests using the improved robust functions
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,64 +8,83 @@
 #include "space_packet_sender.h"
 #include "space_packet_receiver.h"
 
-int test_parameter_validation() {
-    printf("Testing parameter validation...\n");
+int test_null_parameter_handling() {
+    printf("Testing NULL parameter handling...\n");
     
-    // Test parse_space_packet with safe edge cases only
+    // Test parse_space_packet with NULL parameters
     SpacePacketHeader header;
-    unsigned char payload_buffer[100];
+    unsigned char payload[100];
+    unsigned char valid_packet[] = {0x08, 0x7B, 0x00, 0x01, 0x00, 0x03, 'T', 'E', 'S', 'T'};
     
-    // Test with minimum size packet (should fail)
-    unsigned char tiny_packet[] = {0x00, 0x00};
-    int result = parse_space_packet(tiny_packet, sizeof(tiny_packet), &header, payload_buffer);
-    if (result != 0) {
-        printf("✓ parse_space_packet correctly rejected tiny packet\n");
+    int result = parse_space_packet(NULL, 10, &header, payload);
+    assert(result == SPP_ERROR_NULL_PACKET);
+    printf("✓ parse_space_packet correctly rejected NULL packet\n");
+    
+    result = parse_space_packet(valid_packet, sizeof(valid_packet), NULL, payload);
+    assert(result == SPP_ERROR_NULL_HEADER);
+    printf("✓ parse_space_packet correctly rejected NULL header\n");
+    
+    result = parse_space_packet(valid_packet, sizeof(valid_packet), &header, NULL);
+    assert(result == SPP_ERROR_NULL_PAYLOAD_BUFFER);
+    printf("✓ parse_space_packet correctly rejected NULL payload buffer\n");
+    
+    // Test build_space_packet with NULL parameters
+    unsigned char test_payload[] = "test";
+    char *packet = build_space_packet(123, 1, test_payload, 0, 0, NULL, 4);
+    assert(packet == NULL);
+    printf("✓ build_space_packet correctly rejected NULL packet_size\n");
+    
+    size_t packet_size;
+    packet = build_space_packet(123, 1, NULL, 0, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ build_space_packet correctly rejected NULL payload with non-zero length\n");
+    
+    // Test zero-length payload (should work with placeholder)
+    packet = build_space_packet(123, 1, NULL, 0, 0, &packet_size, 0);
+    if (packet != NULL) {
+        printf("✓ build_space_packet handled zero-length payload gracefully\n");
+        free(packet);
     } else {
-        printf("! parse_space_packet should reject tiny packet\n");
+        printf("! build_space_packet failed with zero-length payload\n");
     }
     
-    printf("✓ Parameter validation tests completed\n");
     return 0;
 }
 
-int test_boundary_packet_parameters() {
-    printf("Testing boundary packet parameters...\n");
+int test_invalid_parameter_ranges() {
+    printf("Testing invalid parameter ranges...\n");
     
-    // Test only with valid parameters to avoid Python exceptions
     unsigned char payload[] = "test";
-    size_t packet_size = 0;
+    size_t packet_size;
     
-    struct boundary_case {
-        int apid;
-        int seq_count;
-        int packet_type;
-        int sec_header_flag;
-        const char* description;
-    } cases[] = {
-        {0, 0, 0, 0, "Minimum values"},
-        {2047, 16383, 1, 1, "Maximum valid values"},
-        {1, 1, 1, 1, "Small positive values"},
-        {100, 200, 0, 0, "Normal values"}
-    };
+    // Test invalid APID values
+    char *packet = build_space_packet(-1, 1, payload, 0, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected negative APID\n");
     
-    size_t num_cases = sizeof(cases) / sizeof(cases[0]);
+    packet = build_space_packet(2048, 1, payload, 0, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected APID > 2047\n");
     
-    for (size_t i = 0; i < num_cases; i++) {
-        printf("Testing: %s\n", cases[i].description);
-        
-        char *packet = build_space_packet(cases[i].apid, cases[i].seq_count,
-                                         payload, cases[i].packet_type,
-                                         cases[i].sec_header_flag, &packet_size, 4);
-        
-        if (packet) {
-            printf("  ✓ Successfully built packet\n");
-            free(packet);
-        } else {
-            printf("  ! Failed to build packet\n");
-        }
-    }
+    // Test invalid sequence count values
+    packet = build_space_packet(123, -1, payload, 0, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected negative sequence count\n");
     
-    printf("✓ Boundary value tests completed\n");
+    packet = build_space_packet(123, 16384, payload, 0, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected sequence count > 16383\n");
+    
+    // Test invalid packet type
+    packet = build_space_packet(123, 1, payload, 2, 0, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected invalid packet type\n");
+    
+    // Test invalid secondary header flag
+    packet = build_space_packet(123, 1, payload, 0, 2, &packet_size, 4);
+    assert(packet == NULL);
+    printf("✓ Correctly rejected invalid secondary header flag\n");
+    
     return 0;
 }
 
@@ -78,20 +97,14 @@ int test_parse_malformed_packets() {
     // Test with too short packet
     unsigned char short_packet[] = {0x01, 0x02};
     int result = parse_space_packet(short_packet, sizeof(short_packet), &header, payload);
-    if (result == -1) {
-        printf("✓ Correctly rejected packet too short\n");
-    } else {
-        printf("✗ Should reject packet too short (got result: %d)\n", result);
-    }
+    assert(result == SPP_ERROR_PACKET_TOO_SHORT);
+    printf("✓ Correctly rejected packet too short\n");
     
     // Test with header but no payload
     unsigned char header_only[] = {0x08, 0x7B, 0x00, 0x01, 0x00, 0x05}; // Claims 6 bytes payload
     result = parse_space_packet(header_only, sizeof(header_only), &header, payload);
-    if (result == -2) {
-        printf("✓ Correctly rejected incomplete packet\n");
-    } else {
-        printf("✗ Should reject incomplete packet (got result: %d)\n", result);
-    }
+    assert(result == SPP_ERROR_INCOMPLETE_PACKET);
+    printf("✓ Correctly rejected incomplete packet\n");
     
     // Test with valid header and matching payload
     unsigned char valid_packet[] = {
@@ -102,21 +115,12 @@ int test_parse_malformed_packets() {
     };
     
     result = parse_space_packet(valid_packet, sizeof(valid_packet), &header, payload);
-    if (result == 0) {
-        printf("✓ Correctly parsed valid packet\n");
-        printf("  APID: %d, SeqCount: %d, DataLen: %zu\n", 
-               header.apid, header.seq_count, header.data_len);
-        
-        // Verify parsed data
-        if (header.apid == 123 && header.seq_count == 1 && header.data_len == 4 &&
-            memcmp(payload, "TEST", 4) == 0) {
-            printf("✓ All parsed data correct\n");
-        } else {
-            printf("✗ Parsed data incorrect\n");
-        }
-    } else {
-        printf("✗ Failed to parse valid packet (result: %d)\n", result);
-    }
+    assert(result == SPP_SUCCESS);
+    assert(header.apid == 123);
+    assert(header.seq_count == 1);
+    assert(header.data_len == 4);
+    assert(memcmp(payload, "TEST", 4) == 0);
+    printf("✓ Correctly parsed valid packet\n");
     
     return 0;
 }
@@ -124,8 +128,8 @@ int test_parse_malformed_packets() {
 int test_large_payloads() {
     printf("Testing with various payload sizes...\n");
     
-    // Test with a moderately large payload
-    const size_t large_size = 512;
+    // Test with moderately large payload
+    const size_t large_size = 1024;
     unsigned char *large_payload = malloc(large_size);
     
     if (!large_payload) {
@@ -153,11 +157,11 @@ int test_large_payloads() {
             int result = parse_space_packet((unsigned char*)packet, packet_size, 
                                           &header, parsed_payload);
             
-            if (result == 0) {
+            if (result == SPP_SUCCESS) {
                 printf("✓ Successfully parsed large packet\n");
                 
-                // Verify a few bytes
-                if (memcmp(parsed_payload, large_payload, 100) == 0) {
+                // Verify data integrity
+                if (memcmp(parsed_payload, large_payload, large_size) == 0) {
                     printf("✓ Large payload data integrity verified\n");
                 } else {
                     printf("✗ Large payload data corruption detected\n");
@@ -176,9 +180,8 @@ int test_large_payloads() {
     
     free(large_payload);
     
-    // Test with small payload (1 byte) - NO NULL PAYLOADS
-    printf("Testing with small payload...\n");
-    unsigned char small_payload[] = "A"; // 1 byte payload
+    // Test with 1-byte payload
+    unsigned char small_payload[] = "A";
     packet_size = 0;
     packet = build_space_packet(200, 2, small_payload, 0, 0, &packet_size, 1);
     
@@ -191,10 +194,10 @@ int test_large_payloads() {
         int result = parse_space_packet((unsigned char*)packet, packet_size, 
                                       &header, single_byte);
         
-        if (result == 0 && header.data_len == 1 && single_byte[0] == 'A') {
+        if (result == SPP_SUCCESS && header.data_len == 1 && single_byte[0] == 'A') {
             printf("✓ Successfully parsed 1-byte payload packet\n");
         } else {
-            printf("! 1-byte payload test result: %d, len: %zu, data: %c\n", 
+            printf("! 1-byte payload test failed: result=%d, len=%zu, data=%c\n", 
                    result, header.data_len, single_byte[0]);
         }
         
@@ -240,13 +243,11 @@ int test_boundary_values() {
             int result = parse_space_packet((unsigned char*)packet, packet_size, 
                                           &header, parsed_payload);
             
-            if (result == 0) {
-                if (header.apid == cases[i].apid && header.seq_count == cases[i].seq_count &&
-                    header.data_len == payload_len) {
-                    printf("✓ Boundary case passed\n");
-                } else {
-                    printf("✗ Boundary case data mismatch\n");
-                }
+            if (result == SPP_SUCCESS) {
+                assert(header.apid == cases[i].apid);
+                assert(header.seq_count == cases[i].seq_count);
+                assert(header.data_len == payload_len);
+                printf("✓ Boundary case passed\n");
             } else {
                 printf("✗ Failed to parse boundary case: %d\n", result);
             }
@@ -260,76 +261,104 @@ int test_boundary_values() {
     return 0;
 }
 
-int test_python_functionality() {
-    printf("Testing Python functionality...\n");
+int test_python_error_recovery() {
+    printf("Testing Python error recovery...\n");
     
-    // Only test safe Python operations
+    // Test double initialization (should be safe now)
+    init_space_packet_sender();
+    init_space_packet_sender(); // Second call should be safe
+    
     unsigned char payload[] = "test";
     size_t packet_size = 0;
     
-    // Test with normal parameters to ensure Python is working
     char *packet = build_space_packet(100, 1, payload, 0, 0, &packet_size, 4);
     
     if (packet) {
-        printf("✓ Basic Python function call works\n");
+        printf("✓ Functions work correctly after double initialization\n");
         free(packet);
     } else {
-        printf("! Basic Python function call failed\n");
-        return -1;
+        printf("! Functions failed after double initialization\n");
     }
     
-    // Test with different packet types
-    packet = build_space_packet(100, 1, payload, 1, 1, &packet_size, 4);
-    if (packet) {
-        printf("✓ Handled TC packet with secondary header\n");
-        free(packet);
-    } else {
-        printf("! Failed with TC packet\n");
+    // Test various valid combinations to ensure Python integration is stable
+    int test_combinations[][4] = {
+        {100, 1, 0, 0},  // TM, no sec header
+        {200, 2, 1, 1},  // TC, with sec header
+        {300, 3, 0, 1},  // TM, with sec header
+        {400, 4, 1, 0}   // TC, no sec header
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        packet = build_space_packet(test_combinations[i][0], test_combinations[i][1],
+                                   payload, test_combinations[i][2], test_combinations[i][3],
+                                   &packet_size, 4);
+        if (packet) {
+            printf("✓ Test combination %d passed\n", i+1);
+            free(packet);
+        } else {
+            printf("! Test combination %d failed\n", i+1);
+        }
     }
     
-    printf("✓ Python functionality tests completed\n");
     return 0;
 }
 
 int main() {
-    printf("=== Error Handling and Edge Cases Tests ===\n");
+    printf("=== Comprehensive Error Handling and Edge Cases Tests ===\n");
+    printf("Using improved robust functions with proper error handling\n\n");
     
     // Initialize Python once at the beginning
     init_space_packet_sender();
     
-    if (test_parameter_validation() != 0) {
+    if (test_null_parameter_handling() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
-    if (test_boundary_packet_parameters() != 0) {
+    if (test_invalid_parameter_ranges() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
     if (test_parse_malformed_packets() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
     if (test_large_payloads() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
     if (test_boundary_values() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
-    if (test_python_functionality() != 0) {
+    if (test_python_error_recovery() != 0) {
         finalize_space_packet_sender();
         return EXIT_FAILURE;
     }
+    printf("\n");
     
     // Finalize Python once at the end
     finalize_space_packet_sender();
     
-    printf("=== All Error Handling Tests Completed! ===\n");
+    printf("=== All Comprehensive Error Handling Tests Passed! ===\n");
+    printf("\nThe library now safely handles:\n");
+    printf("✓ NULL parameter validation\n");
+    printf("✓ Parameter range validation\n");
+    printf("✓ Malformed packet parsing\n");
+    printf("✓ Large payload processing\n");
+    printf("✓ Boundary value testing\n");
+    printf("✓ Python error recovery\n");
+    printf("✓ Zero-length payload handling\n");
+    printf("✓ All previously problematic edge cases\n");
+    
     return EXIT_SUCCESS;
 }

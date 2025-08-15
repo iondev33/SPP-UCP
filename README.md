@@ -380,7 +380,7 @@ The project includes a comprehensive test suite covering:
    - Error handling ("connection refused" errors expected when no receiver running)
 
 4. **Error Cases Tests** (`test_error_cases.c`)
-  
+   - NULL parameter handling
    - Invalid parameter values
    - Malformed packet parsing
    - Boundary value testing
