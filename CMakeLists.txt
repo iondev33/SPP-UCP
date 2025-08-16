@@ -16,21 +16,6 @@ else()
     set(PYTHON_EXEC "${VENV_DIR}/bin/python")
 endif()
 
-# Ensure virtual environment is created and dependencies are installed
-add_custom_target(ActivateVirtualEnv
-    COMMAND ${CMAKE_COMMAND} -E echo "Setting up virtual environment..."
-    COMMAND ${CMAKE_COMMAND} -E sh -c
-        "if [ ! -d \"${VENV_DIR}\" ]; then \
-            echo 'Creating virtual environment...'; \
-            python3 -m venv \"${VENV_DIR}\"; \
-        else \
-            echo 'Virtual environment already exists.'; \
-        fi"
-    COMMAND ${PIP_EXEC} install --upgrade pip
-    COMMAND ${PIP_EXEC} install --quiet --requirement ${CMAKE_SOURCE_DIR}/python/requirements.txt
-    COMMENT "Virtual environment setup and dependency installation"
-)
-
 # Use Python executable from the virtual environment
 set(Python3_EXECUTABLE ${PYTHON_EXEC})
 
