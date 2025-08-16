@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
 # Define virtual environment paths
+# The user is responsible for creating this directory
 if (WIN32)
     set(VENV_DIR "${CMAKE_SOURCE_DIR}/../SPPUCPENV")
     set(PIP_EXEC "${VENV_DIR}/Scripts/pip.exe")

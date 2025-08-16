@@ -273,6 +273,8 @@ gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --incl
 
 ### Build Using CMake
 
+The virtual environment `SPPUCPENV` must be created by user before running CMake.
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -285,8 +287,6 @@ cd build
 # Configure and build
 cmake ..
 make
-
-# The virtual environment and Python dependencies will be set up automatically
 ```
 
 ### Build Targets
