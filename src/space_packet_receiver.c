@@ -1,29 +1,53 @@
 #include "space_packet_receiver.h"
-#include <stdlib.h>
-#include <string.h>
+#include <string.h> // For memcpy
+#include <stdio.h>
 
-int parse_space_packet(const char *packet, size_t packet_size, SpacePacketHeader *header, char **payload) {
+int parse_space_packet(const unsigned char *packet, size_t packet_size, SpacePacketHeader *header, unsigned char *payload) {
+    // Parameter validation - check for NULL pointers
+    if (packet == NULL) {
+        fprintf(stderr, "Error: packet parameter is NULL\n");
+        return SPP_ERROR_NULL_PACKET;
+    }
+    
+    if (header == NULL) {
+        fprintf(stderr, "Error: header parameter is NULL\n");
+        return SPP_ERROR_NULL_HEADER;
+    }
+    
+    if (payload == NULL) {
+        fprintf(stderr, "Error: payload parameter is NULL\n");
+        return SPP_ERROR_NULL_PAYLOAD_BUFFER;
+    }
+    
+    // Check for minimum header size
     if (packet_size < 6) {
-        return -1; // Packet too small
+        fprintf(stderr, "Error: packet too short (%zu bytes, minimum 6 required)\n", packet_size);
+        return SPP_ERROR_PACKET_TOO_SHORT;
     }
 
-    // Extract header fields
-    header->packet_type = (packet[0] >> 4) & 0x01; // 1 bit for packet type
-    header->sec_header_flag = (packet[0] >> 3) & 0x01; // 1 bit for secondary header flag
-    header->apid = ((packet[0] & 0x07) << 8) | (unsigned char)packet[1];
-    header->seq_count = ((unsigned char)packet[2] << 8) | (unsigned char)packet[3];
-    header->data_len = ((unsigned char)packet[4] << 8) | (unsigned char)packet[5] + 1;
+    // Parse the primary header fields
+    header->version = (packet[0] >> 5) & 0x07;
+    header->packet_type = (packet[0] >> 4) & 0x01;
+    header->sec_header_flag = (packet[0] >> 3) & 0x01;
+    header->apid = ((packet[0] & 0x07) << 8) | packet[1];
 
+    // Extract sequence flags and count
+    header->seq_flags = (packet[2] >> 6) & 0x03;
+    header->seq_count = ((packet[2] & 0x3F) << 8) | packet[3];
+
+    // Get the data length
+    header->data_len = (packet[4] << 8) | packet[5];
+    header->data_len += 1; // Per CCSDS standard, length is encoded as N-1
+
+    // Integrity check: ensure the received packet size matches the expected size
     if (packet_size < header->data_len + 6) {
-        return -2; // Incomplete packet
+        fprintf(stderr, "Error: incomplete packet - expected %zu bytes, got %zu bytes\n", 
+                header->data_len + 6, packet_size);
+        return SPP_ERROR_INCOMPLETE_PACKET;
     }
 
-    // Extract payload
-    *payload = malloc(header->data_len);
-    if (!*payload) {
-        return -3; // Memory allocation failed
-    }
-    memcpy(*payload, packet + 6, header->data_len);
+    // Copy the payload into the provided buffer
+    memcpy(payload, packet + 6, header->data_len);
 
-    return 0; // Success
+    return SPP_SUCCESS;
 }

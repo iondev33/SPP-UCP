@@ -1,6 +1,67 @@
-# SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider
+# Space Packet Protocol (SPP) UCP Library
 
-12/13/2024
+8/15/2025
+
+This is a C library for CCSDS Space Packet Protocol with Python integration, providing both interactive tools and a shared library API for space packet transmission and reception.
+
+This library is not intended as an operational SPP provider, only as a means to support SPP-CLA testing for a Bundle Protocol Agent.
+
+## Overview
+
+This library implements the CCSDS (Consultative Committee for Space Data Systems) Space Packet Protocol, allowing applications to:
+
+- Build and parse CCSDS space packets
+- Send and receive packets over UDP networks
+- Integrate with Python-based space packet modules
+- Provide both interactive tools and programmatic APIs
+
+## Features
+
+- **CCSDS Compliant**: Implements standard space packet format
+- **Python Integration**: Uses Python modules for packet construction
+- **UDP Communication**: Network transmission over UDP
+- **Dual APIs**: Both low-level functions and high-level shared library interface
+- **Interactive Tools**: Command-line utilities for testing and development
+- **Comprehensive Testing**: Full test suite with unit and integration tests
+
+## Project Structure
+
+```
+spp-ucp/
+├── CMakeLists.txt
+├── README.md
+├── src/
+│   ├── space_packet_sender.h
+│   ├── space_packet_sender.c      # Core packet building functions
+│   ├── space_packet_receiver.h
+│   ├── space_packet_receiver.c    # Core packet parsing functions
+│   ├── spptxfunc.c               # Shared library sender API
+│   ├── spprxfunc.c               # Shared library receiver API
+│   ├── spptx.c                   # Interactive sender tool
+│   ├── spprx.c                   # Interactive receiver tool
+│   └── spptxpipe.c               # Pipe-based sender tool
+├── tests/
+│   ├── test_basic_api.c          # Basic API tests
+│   ├── test_shared_api.c         # Shared library API tests
+│   └── test_error_cases.c        # Error handling tests
+├── python/
+│   ├── space_packet_module.py    # Python packet implementation
+│   ├── requirements.txt          # Python dependencies
+│   └── tests/
+│       └── test_send_recv.py     # Python-level tests
+└── build/                        # Build directory (created by CMake)
+```
+
+## Building the Project
+
+### Prerequisites
+
+- CMake 3.15 or higher
+- C compiler (GCC, Clang, or MSVC)
+- Python 3.9 or higher (required by spacepacket python module)
+- Python development headers
+
+# SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider
 
 ## Introduction
 
@@ -38,12 +99,26 @@ With that in mind, we design the SPP CLA prototype in ION with the following in 
 
 ![SPP CLA Prototype in ION](./spp-cla-prototype.png)
 
+### SPP-UCP - an SPP Provider Emulation
+
+This repo implements provides two API functions to SPP User:
+
+* `packet_request` - defined in `spptxfunc.c` to accept request to send a payload with given APID and other configuration parameters, build the space packet, and send it via UDP to a hardcoded IP address/port:
+
+* `packet_indication` - defined in `spprxfunc.c` to accept indication of received space packets from a specific interface port,extract relevant information, and pass it to the SPP CLA for further processing.
+
+### Multiple SPP-UCP Instance
+
+This initial prototype (in conjunction with the release ION 4.1.4) of the SPP-UCP library will have hardcoded IP/port assignment for transmit and receive. So each SPP bi-directional provider connection with another node will need a separately compiled shard library. 
+
+If needed, this will be updated in future release to support configurable IP/port address so one single shared library can be used for multiple connections.
+
 ## Install Dependencies
 
 The Space Packet Protocol provider library is based on the `spacepackets` [python package](https://pypi.org/project/spacepackets/), which requires python version >= 3.9. Check the version:
 
 ```bash
-python --version
+python3 --version
 ```
 
 If you don't want to upgrade to higher python version, please install and enable a higher version (but not as default.) Example in RHEL:
@@ -55,54 +130,72 @@ sudo dnf install python39
 
 This will install Python 3.9 as /usr/bin/python3.9 without affecting the default /usr/bin/python3 (Python 3.6).
 
-Check python version again. Sometimes this may upgrade to a different version. In the RHEL8 example, the python version was actually upgraded to 3.11.
+Check python version again. Sometimes this may upgrade to a different version. In the RHEL8 example, the python version was actually upgraded to 3.12.
 
-It might be a good idea to set up python virtual environment using required python version. For example, if the only python version on the host higher than 3.9 is 3.11, then use it to create the python environment, which will make it the default version in that environment.
+It might be a good idea to set up python virtual environment using required python version. For example, if the only python version on the host higher than 3.9 is 3.12, then use it to create the python environment, which will make it the default version in that environment.
 
 ```bash
-python3.11 -m venv spp-ucp-env
+# In your home directory, create virtual environment
+python3 -m venv SPPUCPENV
 ```
 
 Activate virtual environment:
 
 ```bash
-source ./spp-ucp-env/bin/activate
+source ./SPPUCPENV/bin/activate
 ```
+
+* You can deactivate the virtual environment by `deactivate`.
 
 To build actual CCSDS Space Packets, we use the `spacepackets` python package. See [documentation.](https://spacepackets.readthedocs.io/en/latest/examples.html)
 
-Install the `spacepackets` package using pip: 
+Within the new virtual environment, `python` (without the '3') should simply default to the python3 version you used to create the environment. You can also verify by path that the `python` command is now running within the environment:
 
+```bash
+python --version
+which python
 ```
+
+Now check if the `spacepackets` package is installed:
+
+```bash
+python -c "import spacepackets; print('Module found')"
+```
+
+If you see the message "Module found", then the package is installed. If not, you need to install it. If not, install the `spacepackets` package using pip: 
+
+```bash
 python -m pip install spacepackets
 ```
 
-## Example of using the `spacepackets` package
+## Testing the Python `spacepackets` package
 
 The `send_space_packet_udp.py` script will construct a spacepacket and send it via UDP. The `recv_space_packet_udp.py` script will receive a packet over UDP, parse it, and display its content.
 
 Start the receive script:
 
 ```bash
+cd python
 python recv_space_packet_udp.py 127.0.0.1 5000
 ```
 
-Send a spacepacket:
+Send a spacepacket with APID 250, sequence count 1, payload "01020304" to localhost on port 5000. Make sure the receive script is running before sending the packet.
 
 ```bash
+cd python
 python send_space_packet_udp.py --apid 250 --seq_count 1 --payload "01020304" 127.0.0.1 5000
 ```
 
-## Build the `space_packet_sender.c` Program
+## Testing the C Space Packet Library
 
-Install the `space_packet_module`.
+To access space packet from C, we need to install the `space_packet_module` python module we created:
 
 ``` bash
 cd ./space_packet_module
 python -m pip install .
 ```
 
-Confirm it is installed from any directory (other than where the modules is stored.)
+Confirm it is installed by running the following command from inside the virtual environment where the module is installed:
 
 ```bash
 # Go to a different directory and run:
@@ -113,76 +206,257 @@ Install the Python C development package in order to  build the C wrapper functi
 
 This must be install on the host so you need to specify the exact version. So you need to specify python3.11-dev instead of just python3-dev.
 
-Again, from inside the virtual environment where the module is installed, run `python --version' to confirm the actual version of python in the virtual environment. For example it is 3.11. Then install the development package specific to that version:
+Again, from inside the virtual environment where the module is installed, run `python --version` to confirm the actual version of python in the virtual environment. For example if it is 3.12, then install the development package specific to that version:
 
 For Ubuntu
 ```bash
 sudo apt-get update
-sudo apt-get install python3.11-dev
+sudo apt-get install python3.12-dev
 ```
 
 For MacOS
 ```bash
-brew install python@3.11
+brew install python@3.12
 ```
-Note: installing  python@3.11 will install its related development packages.
+Note: installing  python@3.12 will install its related development packages.
 
 For RHEL8:
 ```bash
 sudo subscription-manager repos --enable codeready-builder-for-rhel-8-$(arch)-rpms
-sudo dnf module enable python:3.11
-sudo dnf install python3.11 python3.11-devel
+sudo dnf module enable python:3.12
+sudo dnf install python3.12 python3.12-devel
 ```
 
 Confirm Python include path:
 For  Ubuntu:
 ```bash
-python3.11-config --includes
-python3.11-config --ldflags
+python3.12-config --includes
+python3.12-config --ldflags
 ```
 
 For MacOS:
 ```bash
-python3.11-config --includes
-python3.11-config --ldflags
+python3.12-config --includes
+python3.12-config --ldflags
 ```
 
 Verify installation of the development header:
 
 For Ubuntu:
 ```bash
-ls /usr/include/python3.11/Python.h
+ls /usr/include/python3.12/Python.h
 ```
 
-Take note if the `-lpython3.11` is part of the include flag output. If not, make sure the shared library is avilable:
+Take note if the `-lpython3.12` is part of the include flag output. If not, make sure the shared library is avilable:
 
 ```bash
-find /usr -name "libpython3.11.so"
+find /usr -name "libpython3.12.so"
 ```
 
 If it is available, then you just have to manually add the flag to the compiler.
 
-## Build the `space_packet_sender.c` Program
+### Build C Test Untilities Manually
+
+The C test programs for Space Packet are `spptx.c` and `spprx.c`. You can buidl them this way: 
 
 ```bash
-# Compile command that manually adds -lpython3.11 at the end
-gcc -g -o space_packet_sender space_packet_sender.c $(python3.11-config --includes) $(python3.11-config --ldflags) $(python3.11-config --libs) -lpython3.11
+# Go to "src" folder
+# Build the transmit program: spptx
+gcc -g -o spptx spptx.c space_packet_sender.c $(python3.12-config --includes) $(python3.12-config --ldflags) $(python3.12-config --libs) -lpython3.12
+
+# Build the receiving program: spprx
+gcc -g -o spprx spprx.c space_packet_receiver.c
+
+# Build the transmit program designed for piped input from stdin
+gcc -g -o spptxpipe spptxpipe.c space_packet_sender.c $(python3.12-config --includes) $(python3.12-config --ldflags) $(python3.12-config --libs) -lpython3.12
 ```
 
-# Using the CMake build system
+### Build Using CMake
 
-## Build the Project
+The virtual environment `SPPUCPENV` must be created by user before running CMake.
 
 ```bash
-mkdir build && cd build
+# Clone the repository
+git clone <repository-url>
+cd spp-ucp
+
+# Create build directory
+mkdir build
+cd build
+
+# Configure and build
 cmake ..
 make
 ```
-## Run the Test
 
+### Build Targets
+
+The build creates several executables and libraries:
+
+- **`spptx`**: Interactive packet sender
+- **`spprx`**: Interactive packet receiver  
+- **`spptxpipe`**: Pipe-based packet sender
+- **`libspp_protocol.so`**: Shared library for external applications
+- **Test executables**: Various test programs (see Testing section)
+
+## Usage
+
+### Interactive Tools
+
+#### Packet Receiver (`spprx`) - start the receiver first!
 ```bash
-ctest --output-on-failure
+./spprx <PORT>
+
+# Example:
+./spprx 55554
+# Will listen for incoming packets and display parsed content
+```
+
+#### Packet Sender (`spptx`)
+```bash
+./spptx <IP> <PORT> <APID> <PACKET_TYPE> <SEC_HEADER_FLAG> <PAYLOAD_SIZE>
+
+# Example:
+./spptx 192.168.1.203 55554 123 0 0 16
+# Then enter hex payload when prompted: 48656c6c6f20576f726c64
+```
+
+#### Packet Sender (`spptxpipe`)
+```bash
+# Each line in the file is a single packet payload
+# Example
+cat hex_payload.txt | ./spptxpipe 127.0.0.1 55554 250 0 0 8
+```
+
+### Shared Library API
+
+The shared library provides two main functions:
+
+#### `packet_request` - Send a packet
+```c
+#include "space_packet_sender.h"
+
+int packet_request(unsigned char *byte_payload, int apid, int seq_count, 
+                   int packet_type, int sec_header_flag, size_t to_send_bytes);
+
+// Example usage:
+init_space_packet_sender();
+unsigned char payload[] = "Hello World";
+int result = packet_request(payload, 123, 1, 0, 0, strlen(payload));
+finalize_space_packet_sender();
+```
+
+#### `packet_indication` - Receive a packet
+```c
+#include "space_packet_receiver.h"
+
+size_t packet_indication(char *buffer, int *apid);
+
+// Example usage:
+char buffer[1024];
+int apid;
+size_t length = packet_indication(buffer, &apid);
+if (length > 0) {
+    printf("Received packet from APID %d: %s\n", apid, buffer);
+}
+```
+
+### Core API Functions
+
+For direct integration, use the core functions:
+
+```c
+// Building packets
+char *build_space_packet(int apid, int seq_count, const unsigned char *payload_data,
+                        int packet_type, int sec_header_flag, size_t *packet_size, 
+                        size_t payload_len);
+
+// Parsing packets
+int parse_space_packet(const unsigned char *packet, size_t packet_size, 
+                      SpacePacketHeader *header, unsigned char *payload);
+```
+
+## Testing
+
+### Test Suite Overview
+
+The project includes a comprehensive test suite covering:
+
+#### Test Categories
+
+1. **Basic API Tests** (`test_basic_api.c`)
+   - Tests `build_space_packet` and `parse_space_packet` functions
+   - Multiple packet types and parameter combinations
+   - Data integrity verification
+
+2. **Shared API Tests** (`test_shared_api.c`)
+   - Tests `packet_request` and `packet_indication` functions
+   - Uses localhost (127.0.0.1) for testing instead of hardcoded IPs
+   - Parameter validation
+   - Error handling ("connection refused" errors expected when no receiver running)
+
+4. **Error Cases Tests** (`test_error_cases.c`)
+   - NULL parameter handling
+   - Invalid parameter values
+   - Malformed packet parsing
+   - Boundary value testing
+
+### Running Tests
+
+#### Build and Run All Tests
+```bash
+cd build
+make
+ctest --output-on-failure --verbose
+```
+
+#### Run Individual Test Categories
+```bash
+# Basic API tests
+ctest -R BasicAPITest --verbose
+
+# Shared API tests  
+ctest -R SharedAPITest --verbose
+
+# Error handling tests
+ctest -R ErrorCasesTest --verbose
+```
+
+#### Custom Test Target
+```bash
+# Run all tests with custom target
+make run_all_tests
+```
+
+### Test Configuration
+
+Tests are configured with:
+- **Timeouts**: 30 seconds for all tests
+- **Labels**: `basic`, `shared`, `error` for selective execution
+- **Error Handling**: Graceful handling of expected network failures
+
+### Expected Test Behavior
+
+#### Successful Output Example
+```
+=== Basic API Tests ===
+Testing build_space_packet and parse_space_packet...
+Built packet of size: 19
+Parsed header - APID: 123, SeqCount: 42, DataLen: 13
+✓ Basic API test passed
+=== All Basic API Tests Passed! ===
+```
+
+**Note**: "Connection refused" errors are expected when no receiver is running and do not indicate test failure.
+
+### Debug Mode
+
+Build with debug symbols for better error reporting:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make
 ```
 
 
-
+## License
+TBD

@@ -38,6 +38,10 @@ int hex_char_to_int(char c) {
 // Function to convert a hex string to a byte array
 int hex_string_to_bytes(const char *hex_string, unsigned char *byte_array, size_t max_len) {
     size_t hex_len = strlen(hex_string);
+    // Allow empty input to pass through, will result in a zero-filled payload
+    if (hex_len == 0) {
+        return 0;
+    }
     if (hex_len % 2 != 0) {
         fprintf(stderr, "Hex string must have an even number of characters.\n");
         return -1;
@@ -108,14 +112,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    while (1)
+    // Read from stdin until EOF (end-of-file)
+    while (fgets(hex_input, sizeof(hex_input), stdin))
     {
-        // NEW, CORRECTED CODE BLOCK
-        printf("Enter payload in HEX (or 'exit' to quit): ");
-        if (!fgets(hex_input, sizeof(hex_input), stdin)) {
-            break; // Exit on EOF or read error
-        }
-
         // Check if the input was too long and flush the remainder of the line from stdin
         if (strchr(hex_input, '\n') == NULL) {
             int c;
@@ -153,7 +152,9 @@ int main(int argc, char *argv[])
         }
 
         size_t packet_size;
-        char *packet = build_space_packet(apid, seq_count, (const char*)payload_buffer,
+        // Note: The cast to (const char*) is incorrect based on our previous changes.
+        // It should be (const unsigned char*). I've corrected it here.
+        char *packet = build_space_packet(apid, seq_count, (const unsigned char*)payload_buffer,
                                           packet_type, sec_header_flag, &packet_size, payload_size);
 
         if (!packet)
@@ -170,7 +171,9 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("Packet sent with payload size %zu\n", payload_size);
+            // This print statement might be too verbose for a pipe utility,
+            // but I'm leaving it for now. It can be removed if you want a "silent" tool.
+            fprintf(stderr, "Packet sent with payload size %zu\n", payload_size);
         }
 
         free(packet);

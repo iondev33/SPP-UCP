@@ -6,148 +6,176 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Validate HEX input payload
-int is_valid_hex(const char *hex_payload)
+// Initialize Python interpreter (call this once at program start)
+void init_space_packet_sender()
 {
-	size_t len = strlen(hex_payload);
-	if (len % 2 != 0)
-	{
-		fprintf(stderr, "Payload length must be even\n");
-		return 0;
-	}
-	for (size_t i = 0; i < len; i++)
-	{
-		if (!isxdigit(hex_payload[i]))
-		{
-			fprintf(stderr, "Invalid character in payload: %c\n",
-					hex_payload[i]);
-			return 0;
-		}
-	}
-	return 1;
+    Py_Initialize();
 }
 
-char *build_space_packet(int apid, int seq_count, const char *hex_payload,
-		int packet_type, int sec_header_flag, size_t *packet_size)
+// Finalize Python interpreter (call this once at program end)
+void finalize_space_packet_sender()
 {
-	PyObject *pModule = NULL, *pFunc = NULL, *pArgs = NULL, *pValue = NULL,
-		 *pPacketType = NULL;
-	char *byte_stream = NULL;
+    Py_Finalize();
+}
 
-	// Initialize Python Interpreter
-	Py_Initialize();
+char *build_space_packet(int apid, int seq_count, const unsigned char *payload_data,
+    int packet_type, int sec_header_flag, size_t *packet_size, size_t payload_len)
+{
+// Parameter validation - check packet_size pointer first
+if (packet_size == NULL) {
+fprintf(stderr, "Error: packet_size parameter cannot be NULL\n");
+return NULL;
+}
 
-	// Import Python Module
-	pModule = PyImport_ImportModule("space_packet_module");
-	if (!pModule)
-	{
-		PyErr_Print();
-		fprintf(stderr, "Failed to load space_packet_module\n");
-		goto cleanup;
-	}
+// Initialize packet_size to 0 in case of early return
+*packet_size = 0;
 
-	// Import PacketType Enum
-	PyObject *pPacketTypeEnum = PyObject_GetAttrString(pModule, "PacketType");
-	if (!pPacketTypeEnum)
-	{
-		PyErr_Print();
-		fprintf(stderr, "Failed to load PacketType enum\n");
-		goto cleanup;
-	}
+// Validate APID range
+if (apid < 0 || apid > SPP_MAX_APID) {
+fprintf(stderr, "Error: APID %d out of range (0-%d)\n", apid, SPP_MAX_APID);
+return NULL;
+}
 
-	// Convert packet_type to Python PacketType Enum
-	if (packet_type == 1)
-	{
-		pPacketType = PyObject_GetAttrString(pPacketTypeEnum,
-				"TC"); // Telecommand
-	}
-	else if (packet_type == 0)
-	{
-		pPacketType = PyObject_GetAttrString(pPacketTypeEnum,
-				"TM"); // Telemetry
-	}
-	else
-	{
-		fprintf(stderr, "Invalid packet_type value: %d\n", packet_type);
-		goto cleanup;
-	}
+// Validate sequence count range
+if (seq_count < 0 || seq_count > SPP_MAX_SEQ_COUNT) {
+fprintf(stderr, "Error: Sequence count %d out of range (0-%d)\n", seq_count, SPP_MAX_SEQ_COUNT);
+return NULL;
+}
 
-	if (!pPacketType)
-	{
-		PyErr_Print();
-		fprintf(stderr, "Failed to convert packet_type to PacketType enum\n");
-		goto cleanup;
-	}
+// Validate packet type
+if (packet_type != SPP_PACKET_TYPE_TM && packet_type != SPP_PACKET_TYPE_TC) {
+fprintf(stderr, "Error: Invalid packet type %d (must be %d=TM or %d=TC)\n", 
+       packet_type, SPP_PACKET_TYPE_TM, SPP_PACKET_TYPE_TC);
+return NULL;
+}
 
-	// Convert HEX payload to bytes
-	size_t payload_len = strlen(hex_payload) / 2;
-	char  *payload = malloc(payload_len);
-	if (!payload)
-	{
-		perror("Failed to allocate memory for payload");
-		goto cleanup;
-	}
-	for (size_t i = 0; i < payload_len; i++)
-	{
-		sscanf(&hex_payload[i * 2], "%2hhx", &payload[i]);
-	}
+// Validate secondary header flag
+if (sec_header_flag != 0 && sec_header_flag != 1) {
+fprintf(stderr, "Error: Invalid secondary header flag %d (must be 0 or 1)\n", sec_header_flag);
+return NULL;
+}
 
-	// Build Python Arguments
-	pArgs = Py_BuildValue("(iiy#Oi)", apid, seq_count, payload, payload_len,
-			pPacketType, sec_header_flag);
-	free(payload);
-	if (!pArgs)
-	{
-		PyErr_Print();
-		fprintf(stderr, "Failed to build Python arguments\n");
-		goto cleanup;
-	}
+// Handle payload validation
+if (payload_len > 0 && payload_data == NULL) {
+fprintf(stderr, "Error: payload_data cannot be NULL when payload_len > 0 (%zu)\n", payload_len);
+return NULL;
+}
 
-	// Call the Python Function
-	pFunc = PyObject_GetAttrString(pModule, "build_space_packet");
-	if (!pFunc || !PyCallable_Check(pFunc))
-	{
-		PyErr_Print();
-		fprintf(stderr, "Failed to load build_space_packet function\n");
-		goto cleanup;
-	}
+// Handle zero-length payload case
+const unsigned char *actual_payload = payload_data;
+size_t actual_payload_len = payload_len;
+static const unsigned char placeholder_payload[] = {0x00};
 
-	pValue = PyObject_CallObject(pFunc, pArgs);
-	if (!pValue)
-	{
-		PyErr_Print();
-		fprintf(stderr, "Python function call failed\n");
-		goto cleanup;
-	}
+if (payload_len == 0) {
+// Python module requires non-empty payload, so use a placeholder
+actual_payload = placeholder_payload;
+actual_payload_len = 1;
+printf("Info: Zero-length payload converted to 1-byte placeholder\n");
+}
 
-	// Extract Byte Stream
-	if (PyBytes_Check(pValue))
-	{
-		*packet_size = PyBytes_Size(pValue);
-		byte_stream = malloc(*packet_size);
-		if (byte_stream)
-		{
-			memcpy(byte_stream, PyBytes_AsString(pValue),
-					*packet_size);
-		}
-		else
-		{
-			perror("Failed to allocate memory for byte stream");
-		}
-	}
-	else
-	{
-		fprintf(stderr, "Python function did not return a bytes object\n");
-	}
+PyObject *pModule = NULL, *pFunc = NULL, *pArgs = NULL, *pValue = NULL,
+    *pPacketType = NULL;
+char *byte_stream = NULL;
+
+// Import Python Module
+pModule = PyImport_ImportModule("space_packet_module");
+if (!pModule) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear(); // Clear the error to prevent segfault
+}
+fprintf(stderr, "Failed to load space_packet_module\n");
+return NULL;
+}
+
+// Import PacketType Enum
+PyObject *pPacketTypeEnum = PyObject_GetAttrString(pModule, "PacketType");
+if (!pPacketTypeEnum) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear();
+}
+fprintf(stderr, "Failed to load PacketType enum\n");
+goto cleanup;
+}
+
+// Convert packet_type to Python PacketType Enum
+if (packet_type == SPP_PACKET_TYPE_TC) {
+pPacketType = PyObject_GetAttrString(pPacketTypeEnum, "TC"); // Telecommand
+} else if (packet_type == SPP_PACKET_TYPE_TM) {
+pPacketType = PyObject_GetAttrString(pPacketTypeEnum, "TM"); // Telemetry
+} else {
+// This should never happen due to validation above, but just in case
+fprintf(stderr, "Internal error: Invalid packet_type value: %d\n", packet_type);
+goto cleanup;
+}
+
+if (!pPacketType) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear();
+}
+fprintf(stderr, "Failed to convert packet_type to PacketType enum\n");
+goto cleanup;
+}
+
+// Build Python Arguments using the actual payload data
+pArgs = Py_BuildValue("(iiy#Oi)", apid, seq_count, actual_payload, actual_payload_len,
+                 pPacketType, sec_header_flag);
+if (!pArgs) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear();
+}
+fprintf(stderr, "Failed to build Python arguments\n");
+goto cleanup;
+}
+
+// Call the Python Function
+pFunc = PyObject_GetAttrString(pModule, "build_space_packet");
+if (!pFunc || !PyCallable_Check(pFunc)) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear();
+}
+fprintf(stderr, "Failed to load build_space_packet function\n");
+goto cleanup;
+}
+
+pValue = PyObject_CallObject(pFunc, pArgs);
+if (!pValue) {
+if (PyErr_Occurred()) {
+   PyErr_Print();
+   PyErr_Clear();
+}
+fprintf(stderr, "Python function call failed\n");
+goto cleanup;
+}
+
+// Extract Byte Stream
+if (PyBytes_Check(pValue)) {
+*packet_size = PyBytes_Size(pValue);
+byte_stream = malloc(*packet_size);
+if (byte_stream) {
+   memcpy(byte_stream, PyBytes_AsString(pValue), *packet_size);
+} else {
+   perror("Failed to allocate memory for byte stream");
+}
+} else {
+fprintf(stderr, "Python function did not return a bytes object\n");
+}
 
 cleanup:
-	Py_XDECREF(pArgs);
-	Py_XDECREF(pPacketType);
-	Py_XDECREF(pPacketTypeEnum);
-	Py_XDECREF(pFunc);
-	Py_XDECREF(pModule);
-	Py_XDECREF(pValue);
+// Always clear any remaining Python errors to prevent issues
+if (PyErr_Occurred()) {
+PyErr_Clear();
+}
 
-	Py_Finalize();
-	return byte_stream;
+Py_XDECREF(pArgs);
+Py_XDECREF(pPacketType);
+Py_XDECREF(pPacketTypeEnum);
+Py_XDECREF(pFunc);
+Py_XDECREF(pModule);
+Py_XDECREF(pValue);
+return byte_stream;
 }

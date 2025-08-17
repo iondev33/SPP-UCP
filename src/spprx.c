@@ -5,31 +5,37 @@
 #include <unistd.h>
 #include "space_packet_receiver.h"
 
-#define MAX_PACKET_SIZE 1024
+#define MAX_PACKET_SIZE 65535
+
+void print_payload(const unsigned char *payload, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X ", payload[i]);
+    }
+    printf("\n");
+}
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <IP> <PORT>\n", argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <PORT>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    const char *ip = argv[1];
-    int port = atoi(argv[2]);
+    int port = atoi(argv[1]);
+    int sock;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    unsigned char buffer[MAX_PACKET_SIZE];
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         perror("Socket creation failed");
         return EXIT_FAILURE;
     }
 
-    struct sockaddr_in server_addr = {0};
+    memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-        perror("Invalid IP address");
-        close(sock);
-        return EXIT_FAILURE;
-    }
 
     if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
@@ -37,37 +43,43 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    printf("Listening on %s:%d...\n", ip, port);
+    printf("Listening on port %d...\n", port);
 
-    char packet[MAX_PACKET_SIZE];
     while (1) {
-        ssize_t packet_size = recv(sock, packet, MAX_PACKET_SIZE, 0);
+        ssize_t packet_size = recvfrom(sock, buffer, MAX_PACKET_SIZE, 0,
+                                       (struct sockaddr *)&client_addr, &client_addr_len);
         if (packet_size < 0) {
-            perror("Receive failed");
-            break;
+            perror("recvfrom failed");
+            continue;
         }
 
         SpacePacketHeader header;
-        char *payload = NULL;
-        if (parse_space_packet(packet, packet_size, &header, &payload) == 0) {
-            printf("Parsed Space Packet:\n");
-            printf("  APID: %d\n", header.apid);
-            printf("  Sequence Count: %d\n", header.seq_count);
-            printf("  Packet Type: %s\n", header.packet_type ? "TC" : "TM");
-            printf("  Secondary Header Flag: %d\n", header.sec_header_flag);
-            printf("  Data Length: %zu\n", header.data_len);
-            printf("  Payload (hex): ");
-            for (size_t i = 0; i < header.data_len; i++) {
-                printf("%02x", (unsigned char)payload[i]);
-            }
-            printf("\n");
-
-            free(payload);
-        } else {
-            fprintf(stderr, "Failed to parse space packet\n");
+        // Allocate payload buffer on the heap to be correctly handled by the parser
+        unsigned char *payload = malloc(MAX_PACKET_SIZE);
+        if (payload == NULL) {
+            perror("Failed to allocate payload buffer");
+            continue;
         }
+
+        int result = parse_space_packet(buffer, packet_size, &header, payload);
+
+        if (result == 0) {
+            // Updated printf statement to show flags and count separately
+            printf("Received Packet: APID=%d, SeqFlags=%d, SeqCount=%d, Len=%zu, Payload: ",
+                   header.apid, header.seq_flags, header.seq_count, header.data_len);
+            print_payload(payload, header.data_len);
+        } else if (result == -1) {
+            fprintf(stderr, "Error: Packet too short\n");
+        } else if (result == -2) {
+            fprintf(stderr, "Error: Incomplete packet based on header length\n");
+        } else {
+            fprintf(stderr, "Error: Unknown error parsing packet\n");
+        }
+
+        free(payload); // Free the allocated memory
     }
 
     close(sock);
     return EXIT_SUCCESS;
 }
+
