@@ -1,5 +1,68 @@
 # Space Packet Protocol (SPP) UCP Library
 
+- [Space Packet Protocol (SPP) UCP Library](#space-packet-protocol-spp-ucp-library)
+  - [Overview](#overview)
+  - [Features](#features)
+  - [Project Structure](#project-structure)
+  - [Building the Project](#building-the-project)
+    - [Prerequisites](#prerequisites)
+- [SPP-UCP - A CCSDS Space Packet Protocol Implementation with an UDP-based Communication Provider](#spp-ucp---a-ccsds-space-packet-protocol-implementation-with-an-udp-based-communication-provider)
+  - [Introduction](#introduction)
+  - [SPP CLA Prototype Design for ION](#spp-cla-prototype-design-for-ion)
+    - [SPP-UCP - an SPP Provider Emulation](#spp-ucp---an-spp-provider-emulation)
+    - [Multiple SPP-UCP Instance](#multiple-spp-ucp-instance)
+  - [Install Dependencies](#install-dependencies)
+  - [Testing the Python `spacepackets` package](#testing-the-python-spacepackets-package)
+  - [Testing the C Space Packet Library](#testing-the-c-space-packet-library)
+    - [Build C Test Untilities Manually](#build-c-test-untilities-manually)
+    - [Build Using CMake](#build-using-cmake)
+    - [Build Targets](#build-targets)
+  - [Usage](#usage)
+    - [Interactive Tools](#interactive-tools)
+      - [Packet Receiver (`spprx`) - start the receiver first!](#packet-receiver-spprx---start-the-receiver-first)
+      - [Packet Sender (`spptx`)](#packet-sender-spptx)
+      - [Packet Sender (`spptxpipe`)](#packet-sender-spptxpipe)
+    - [Shared Library API](#shared-library-api)
+      - [`packet_request` - Send a packet](#packet_request---send-a-packet)
+      - [`packet_indication` - Receive a packet](#packet_indication---receive-a-packet)
+    - [Core API Functions](#core-api-functions)
+  - [Testing](#testing)
+    - [Test Suite Overview](#test-suite-overview)
+      - [Test Categories](#test-categories)
+    - [Running Tests](#running-tests)
+      - [Build and Run All Tests](#build-and-run-all-tests)
+      - [Run Individual Test Categories](#run-individual-test-categories)
+      - [Custom Test Target](#custom-test-target)
+    - [Test Configuration](#test-configuration)
+    - [Expected Test Behavior](#expected-test-behavior)
+      - [Successful Output Example](#successful-output-example)
+    - [Debug Mode](#debug-mode)
+- [SPP-UCP Build Configuration Examples](#spp-ucp-build-configuration-examples)
+  - [Quick Start](#quick-start)
+    - [Using the Configuration Script (Recommended)](#using-the-configuration-script-recommended)
+    - [Manual CMake Configuration](#manual-cmake-configuration)
+  - [Configuration Examples](#configuration-examples)
+    - [1. Localhost Testing (Default)](#1-localhost-testing-default)
+    - [2. Localhost with Separate Ports](#2-localhost-with-separate-ports)
+    - [3. Lab Network Configuration](#3-lab-network-configuration)
+    - [4. Production-like Configuration](#4-production-like-configuration)
+    - [5. Using Configuration Presets](#5-using-configuration-presets)
+  - [Building Multiple Configurations](#building-multiple-configurations)
+    - [Option 1: Separate Build Directories](#option-1-separate-build-directories)
+    - [Option 2: Using Script for Multiple Builds](#option-2-using-script-for-multiple-builds)
+  - [Verification](#verification)
+    - [Check Generated Configuration](#check-generated-configuration)
+    - [Testing Different Configurations](#testing-different-configurations)
+  - [Configuration Reference](#configuration-reference)
+    - [CMake Variables](#cmake-variables)
+    - [CMake Options](#cmake-options)
+    - [Port Range Validation](#port-range-validation)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
+    - [Debug Configuration Issues](#debug-configuration-issues)
+  - [License](#license)
+
+
 8/15/2025
 
 This is a C library for CCSDS Space Packet Protocol with Python integration, providing both interactive tools and a shared library API for space packet transmission and reception.
@@ -457,6 +520,224 @@ cmake -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 
+# SPP-UCP Build Configuration Examples
+
+This document provides examples of how to build SPP-UCP with different network configurations. We will integrate this section into the previous materials to avoid repetition.
+
+## Quick Start
+
+### Using the Configuration Script (Recommended)
+```bash
+# Make script executable
+chmod +x scripts/configure_spp.sh
+
+# Interactive configuration with presets
+./scripts/configure_spp.sh preset
+
+# Custom configuration
+./scripts/configure_spp.sh custom
+
+# Clean build directory
+./scripts/configure_spp.sh clean
+```
+
+### Manual CMake Configuration
+
+## Configuration Examples
+
+### 1. Localhost Testing (Default)
+Perfect for testing on a single machine:
+```bash
+mkdir build && cd build
+cmake \
+    -DSPP_TX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_TX_PORT="55554" \
+    -DSPP_RX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_RX_PORT="55554" \
+    ..
+make
+```
+
+### 2. Localhost with Separate Ports
+Useful when running multiple SPP instances on one machine:
+```bash
+mkdir build && cd build
+cmake \
+    -DSPP_TX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_TX_PORT="55554" \
+    -DSPP_RX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_RX_PORT="55555" \
+    ..
+make
+```
+
+### 3. Lab Network Configuration
+For testing between different machines on a network:
+```bash
+mkdir build && cd build
+cmake \
+    -DSPP_TX_IP_ADDRESS="192.168.1.203" \
+    -DSPP_TX_PORT="55554" \
+    -DSPP_RX_IP_ADDRESS="192.168.1.202" \
+    -DSPP_RX_PORT="55554" \
+    ..
+make
+```
+
+### 4. Production-like Configuration
+For more realistic testing scenarios:
+```bash
+mkdir build && cd build
+cmake \
+    -DSPP_TX_IP_ADDRESS="10.0.1.100" \
+    -DSPP_TX_PORT="8080" \
+    -DSPP_RX_IP_ADDRESS="10.0.1.101" \
+    -DSPP_RX_PORT="8081" \
+    ..
+make
+```
+
+### 5. Using Configuration Presets
+```bash
+mkdir build && cd build
+
+# Localhost configuration
+cmake -DSPP_CONFIG_LOCALHOST=ON ..
+
+# Localhost with separate ports
+cmake -DSPP_CONFIG_LOCALHOST=ON -DSPP_CONFIG_SEPARATE_PORTS=ON ..
+```
+
+## Building Multiple Configurations
+
+### Option 1: Separate Build Directories
+```bash
+# Configuration 1: Localhost
+mkdir build-localhost && cd build-localhost
+cmake -DSPP_TX_IP_ADDRESS="127.0.0.1" -DSPP_TX_PORT="55554" \
+      -DSPP_RX_IP_ADDRESS="127.0.0.1" -DSPP_RX_PORT="55554" ..
+make
+
+# Configuration 2: Lab Network
+mkdir ../build-lab && cd ../build-lab
+cmake -DSPP_TX_IP_ADDRESS="192.168.1.203" -DSPP_TX_PORT="55554" \
+      -DSPP_RX_IP_ADDRESS="192.168.1.202" -DSPP_RX_PORT="55554" ..
+make
+```
+
+### Option 2: Using Script for Multiple Builds
+```bash
+#!/bin/bash
+# build_all_configs.sh
+
+configs=(
+    "localhost:127.0.0.1:55554:127.0.0.1:55554"
+    "lab:192.168.1.203:55554:192.168.1.202:55554"
+    "split:127.0.0.1:55554:127.0.0.1:55555"
+)
+
+for config in "${configs[@]}"; do
+    IFS=':' read -r name tx_ip tx_port rx_ip rx_port <<< "$config"
+    
+    echo "Building configuration: $name"
+    mkdir -p "build-$name"
+    cd "build-$name"
+    
+    cmake \
+        -DSPP_TX_IP_ADDRESS="$tx_ip" \
+        -DSPP_TX_PORT="$tx_port" \
+        -DSPP_RX_IP_ADDRESS="$rx_ip" \
+        -DSPP_RX_PORT="$rx_port" \
+        ..
+    make
+    cd ..
+done
+```
+
+## Verification
+
+### Check Generated Configuration
+After building, you can verify the configuration:
+```bash
+# View generated configuration header
+cat build/include/spp_config.h
+
+# Check configuration at runtime (if debug enabled)
+cd build
+./spptx 127.0.0.1 55554 123 0 0 16  # Will show debug info
+```
+
+### Testing Different Configurations
+```bash
+# Terminal 1: Start receiver with localhost config
+cd build-localhost
+./spprx 55554
+
+# Terminal 2: Send packet with localhost config
+cd build-localhost
+echo "48656c6c6f20576f726c64" | ./spptxpipe 127.0.0.1 55554 123 0 0 16
+```
+
+## Configuration Reference
+
+### CMake Variables
+| Variable | Description | Example | Default |
+|----------|-------------|---------|---------|
+| `SPP_TX_IP_ADDRESS` | Transmission IP address | `"192.168.1.203"` | `"127.0.0.1"` |
+| `SPP_TX_PORT` | Transmission port | `8080` | `55554` |
+| `SPP_RX_IP_ADDRESS` | Reception IP address | `"192.168.1.202"` | `"127.0.0.1"` |
+| `SPP_RX_PORT` | Reception port | `8081` | `55554` |
+
+### CMake Options
+| Option | Description | Default |
+|--------|-------------|---------|
+| `SPP_CONFIG_LOCALHOST` | Use localhost preset | `ON` |
+| `SPP_CONFIG_SEPARATE_PORTS` | Use separate TX/RX ports | `OFF` |
+
+### Port Range Validation
+- Minimum port: 1024
+- Maximum port: 65535
+- Build will fail if ports are outside this range
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port already in use**
+   ```bash
+   # Check what's using the port
+   sudo netstat -tulpn | grep 55554
+   
+   # Use different port
+   cmake -DSPP_RX_PORT="55556" ..
+   ```
+
+2. **IP address validation fails**
+   ```bash
+   # Ensure IP address format is correct
+   cmake -DSPP_TX_IP_ADDRESS="192.168.1.100" ..  # ✓ Good
+   cmake -DSPP_TX_IP_ADDRESS="192.168.1"      .. # ✗ Bad
+   ```
+
+3. **Configuration not updating**
+   ```bash
+   # Clean and reconfigure
+   rm -rf build
+   mkdir build && cd build
+   cmake [options] ..
+   ```
+
+### Debug Configuration Issues
+```bash
+# Enable verbose configuration output
+cmake -DVERBOSE_CONFIG=ON ..
+
+# Check generated header
+cat build/include/spp_config.h
+
+# Enable debug output in applications
+cmake -DCMAKE_BUILD_TYPE=Debug -DDEBUG_SPP_CONFIG=ON ..
+```
 
 ## License
 TBD

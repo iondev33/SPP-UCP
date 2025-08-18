@@ -3,82 +3,66 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "space_packet_receiver.h"
+#include "space_packet_sender.h"
+#include "spp_config.h"  // Include generated configuration
 
-#define MAX_PACKET_SIZE 65535
+#define MAX_PAYLOAD_SIZE 1024
 
-/**
- * @brief Receives a single UDP packet and parses it as a CCSDS Space Packet.
- * * @param buffer A buffer provided by the caller to store the packet's payload.
- * @param apid A pointer to an integer that will be populated with the packet's APID.
- * @return The length of the received payload on success, or -1 on failure.
- */
-size_t packet_indication(char *buffer, int *apid) {
+int packet_request(unsigned char *byte_payload, int apid, int seq_count, int packet_type, int sec_header_flag, size_t to_send_bytes)
+{
+    char* packet = NULL;
+    size_t packet_size = 0;
+    size_t bytes_written = 0;
 
-    unsigned char packet[MAX_PACKET_SIZE];
-    const char *ip = "192.168.1.202"; // This should likely be configurable
-    int port = 55554;
-    int payload_length = -1;
-    int enable = 1;
+    // Use compile-time configured values instead of hardcoded ones
+    const char ip[] = SPP_TX_IP_ADDRESS;
+    const int port = SPP_TX_PORT;
+
+    // NOTE: the calling application should initialize Python interpreter: init_space_packet_sender();
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0) {
+    if (sock < 0) 
+    {
         perror("Socket creation failed");
-        return -1;
+        return EXIT_FAILURE;
     }
 
-    struct sockaddr_in server_addr = {0};
+    struct sockaddr_in server_addr = { 0 };
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) 
+    {
         perror("Invalid IP address");
         close(sock);
         return -1;
     }
 
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+    packet = build_space_packet(apid, seq_count, (const char*)byte_payload,
+                                packet_type, sec_header_flag, &packet_size, to_send_bytes);
 
-    if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Bind failed");
+    if (!packet) 
+    {
+        fprintf(stderr, "Failed to build space packet\n");
         close(sock);
         return -1;
     }
 
-    ssize_t packet_size = recv(sock, packet, MAX_PACKET_SIZE, 0);
-    if (packet_size < 0) {
-        perror("Receive failed");
-        close(sock);
-        return -1;
+    if ((bytes_written = sendto(sock, packet, packet_size, 0,
+                               (struct sockaddr *) &server_addr,
+                               sizeof(server_addr))) < 0) 
+    {
+        perror("Failed to send packet");
+    }
+    else
+    {
+        // Optional: Add debug information about configuration
+        #ifdef DEBUG_SPP_CONFIG
+        printf("DEBUG: Sent packet to %s:%d (configured at compile time)\n", ip, port);
+        #endif
     }
 
-    SpacePacketHeader header;
-    // The parse function will now copy the payload directly into the user-provided 'buffer'.
-    if (parse_space_packet(packet, packet_size, &header, (unsigned char*)buffer) == 0) {
-        // Correctly update the APID using the pointer
-        *apid = header.apid;
-        payload_length = header.data_len;
-
-        /* // Conditional debug output
-        printf("Parsed Space Packet:\n");
-        printf("  APID: %d\n", *apid);
-        printf("  Seq Flags: %d\n", header.seq_flags);
-        printf("  Sequence Count: %d\n", header.seq_count);
-        printf("  Packet Type: %s\n", header.packet_type ? "TC" : "TM");
-        printf("  Secondary Header Flag: %d\n", header.sec_header_flag);
-        printf("  Data Length: %zu\n", header.data_len);
-        printf("  Payload (hex): ");
-        for (size_t i = 0; i < header.data_len; i++) {
-            printf("%02x", (unsigned char)buffer[i]);
-        }
-        printf("\n");
-        */
-        
-    } else {
-        fprintf(stderr, "Failed to parse space packet\n");
-        payload_length = -1;
-    }
-
+    free(packet);
     close(sock);
-    
-    return payload_length;
+
+    return bytes_written;
 }
