@@ -37,22 +37,16 @@
     - [Expected Test Behavior](#expected-test-behavior)
       - [Successful Output Example](#successful-output-example)
     - [Debug Mode](#debug-mode)
-- [SPP-UCP Build Configuration Examples](#spp-ucp-build-configuration-examples)
+- [SPP-UCP CMake Build Configuration For Custom IP Configurations](#spp-ucp-cmake-build-configuration-for-custom-ip-configurations)
   - [Quick Start](#quick-start)
+    - [Basic Custom Configuration](#basic-custom-configuration)
     - [Using the Configuration Script (Recommended)](#using-the-configuration-script-recommended)
-    - [Manual CMake Configuration](#manual-cmake-configuration)
-  - [Configuration Examples](#configuration-examples)
-    - [1. Localhost Testing (Default)](#1-localhost-testing-default)
-    - [2. Localhost with Separate Ports](#2-localhost-with-separate-ports)
-    - [3. Lab Network Configuration](#3-lab-network-configuration)
-    - [4. Production-like Configuration](#4-production-like-configuration)
-    - [5. Using Configuration Presets](#5-using-configuration-presets)
-  - [Building Multiple Configurations](#building-multiple-configurations)
-    - [Option 1: Separate Build Directories](#option-1-separate-build-directories)
-    - [Option 2: Using Script for Multiple Builds](#option-2-using-script-for-multiple-builds)
+    - [Build multiple Configurations](#build-multiple-configurations)
+    - [Environment Variable Configuration](#environment-variable-configuration)
   - [Verification](#verification)
     - [Check Generated Configuration](#check-generated-configuration)
     - [Testing Different Configurations](#testing-different-configurations)
+    - [Notes on Impact of Customized IPs and Ports](#notes-on-impact-of-customized-ips-and-ports)
   - [Configuration Reference](#configuration-reference)
     - [CMake Variables](#cmake-variables)
     - [CMake Options](#cmake-options)
@@ -453,7 +447,7 @@ The project includes a comprehensive test suite covering:
    - Data integrity verification
 
 2. **Shared API Tests** (`test_shared_api.c`)
-   - Tests `packet_request` and `packet_indication` functions
+   - Tests a emulated version of `packet_request` and `packet_indication` functions using localhost
    - Uses localhost (127.0.0.1) for testing instead of hardcoded IPs
    - Parameter validation
    - Error handling ("connection refused" errors expected when no receiver running)
@@ -520,11 +514,32 @@ cmake -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 
-# SPP-UCP Build Configuration Examples
+# SPP-UCP CMake Build Configuration For Custom IP Configurations
 
 This document provides examples of how to build SPP-UCP with different network configurations. We will integrate this section into the previous materials to avoid repetition.
 
 ## Quick Start
+
+### Basic Custom Configuration
+```bash
+mkdir build && cd build
+cmake \
+    -DSPP_TX_IP_ADDRESS="192.168.10.100" \
+    -DSPP_TX_PORT="8080" \
+    -DSPP_RX_IP_ADDRESS="192.168.10.101" \
+    -DSPP_RX_PORT="8081" \
+    ..
+make
+```
+Verify configuration:
+```bash
+cat build/include/spp_config.h
+# Look for these lines:
+# #define SPP_TX_IP_ADDRESS "192.168.10.100"
+# #define SPP_TX_PORT 8080
+# #define SPP_RX_IP_ADDRESS "192.168.10.101" 
+# #define SPP_RX_PORT 8081
+```
 
 ### Using the Configuration Script (Recommended)
 ```bash
@@ -541,117 +556,97 @@ chmod +x scripts/configure_spp.sh
 ./scripts/configure_spp.sh clean
 ```
 
-### Manual CMake Configuration
-
-## Configuration Examples
-
-### 1. Localhost Testing (Default)
-Perfect for testing on a single machine:
+Interactive Custom
 ```bash
-mkdir build && cd build
+# From project root
+./scripts/configure_spp.sh custom
+```
+Prompt:
+```bash
+Custom Configuration:
+
+Enter TX IP address [127.0.0.1]: 192.168.10.100
+Enter TX port [55554]: 8080
+Enter RX IP address [127.0.0.1]: 192.168.10.101
+Enter RX port [55554]: 8081
+
+Configuration Summary:
+  Name: custom
+  Transmission: 192.168.10.100:8080
+  Reception:    192.168.10.101:8081
+
+Proceed with build? (y/N): y
+```
+### Build multiple Configurations
+For ION Bundle Protocol testing, you'll likely need multiple configurations for different nodes.
+
+Example: Build Libraries for 3-Node Network
+```bash
+#!/bin/bash
+# Script to build multiple SPP library configurations
+
+# Node A to Node B connection
+mkdir -p build-node-a-to-b
+cd build-node-a-to-b
 cmake \
-    -DSPP_TX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_TX_IP_ADDRESS="10.0.1.100" \
     -DSPP_TX_PORT="55554" \
-    -DSPP_RX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_RX_IP_ADDRESS="10.0.1.101" \
     -DSPP_RX_PORT="55554" \
     ..
 make
-```
+cp libspp_protocol.so ../libspp_node_a_to_b.so
+cd ..
 
-### 2. Localhost with Separate Ports
-Useful when running multiple SPP instances on one machine:
-```bash
-mkdir build && cd build
+# Node A to Node C connection  
+mkdir -p build-node-a-to-c
+cd build-node-a-to-c
 cmake \
-    -DSPP_TX_IP_ADDRESS="127.0.0.1" \
-    -DSPP_TX_PORT="55554" \
-    -DSPP_RX_IP_ADDRESS="127.0.0.1" \
+    -DSPP_TX_IP_ADDRESS="10.0.1.100" \
+    -DSPP_TX_PORT="55555" \
+    -DSPP_RX_IP_ADDRESS="10.0.1.102" \
     -DSPP_RX_PORT="55555" \
     ..
 make
-```
+cp libspp_protocol.so ../libspp_node_a_to_c.so
+cd ..
 
-### 3. Lab Network Configuration
-For testing between different machines on a network:
-```bash
-mkdir build && cd build
+# Node B to Node A connection
+mkdir -p build-node-b-to-a  
+cd build-node-b-to-a
 cmake \
-    -DSPP_TX_IP_ADDRESS="192.168.1.203" \
+    -DSPP_TX_IP_ADDRESS="10.0.1.101" \
     -DSPP_TX_PORT="55554" \
-    -DSPP_RX_IP_ADDRESS="192.168.1.202" \
+    -DSPP_RX_IP_ADDRESS="10.0.1.100" \
     -DSPP_RX_PORT="55554" \
     ..
 make
+cp libspp_protocol.so ../libspp_node_b_to_a.so
+cd ..
+
+echo "Built libraries:"
+ls -la libspp_node_*.so
 ```
 
-### 4. Production-like Configuration
-For more realistic testing scenarios:
+### Environment Variable Configuration
+You can also set up environment variables for easier scripting:
 ```bash
-mkdir build && cd build
+# Set environment variables
+export SPP_TX_IP="203.0.113.10"
+export SPP_TX_PORT="9000" 
+export SPP_RX_IP="203.0.113.11"
+export SPP_RX_PORT="9001"
+
+# Use in cmake
+cd build
+rm -rf *
 cmake \
-    -DSPP_TX_IP_ADDRESS="10.0.1.100" \
-    -DSPP_TX_PORT="8080" \
-    -DSPP_RX_IP_ADDRESS="10.0.1.101" \
-    -DSPP_RX_PORT="8081" \
+    -DSPP_TX_IP_ADDRESS="$SPP_TX_IP" \
+    -DSPP_TX_PORT="$SPP_TX_PORT" \
+    -DSPP_RX_IP_ADDRESS="$SPP_RX_IP" \
+    -DSPP_RX_PORT="$SPP_RX_PORT" \
     ..
 make
-```
-
-### 5. Using Configuration Presets
-```bash
-mkdir build && cd build
-
-# Localhost configuration
-cmake -DSPP_CONFIG_LOCALHOST=ON ..
-
-# Localhost with separate ports
-cmake -DSPP_CONFIG_LOCALHOST=ON -DSPP_CONFIG_SEPARATE_PORTS=ON ..
-```
-
-## Building Multiple Configurations
-
-### Option 1: Separate Build Directories
-```bash
-# Configuration 1: Localhost
-mkdir build-localhost && cd build-localhost
-cmake -DSPP_TX_IP_ADDRESS="127.0.0.1" -DSPP_TX_PORT="55554" \
-      -DSPP_RX_IP_ADDRESS="127.0.0.1" -DSPP_RX_PORT="55554" ..
-make
-
-# Configuration 2: Lab Network
-mkdir ../build-lab && cd ../build-lab
-cmake -DSPP_TX_IP_ADDRESS="192.168.1.203" -DSPP_TX_PORT="55554" \
-      -DSPP_RX_IP_ADDRESS="192.168.1.202" -DSPP_RX_PORT="55554" ..
-make
-```
-
-### Option 2: Using Script for Multiple Builds
-```bash
-#!/bin/bash
-# build_all_configs.sh
-
-configs=(
-    "localhost:127.0.0.1:55554:127.0.0.1:55554"
-    "lab:192.168.1.203:55554:192.168.1.202:55554"
-    "split:127.0.0.1:55554:127.0.0.1:55555"
-)
-
-for config in "${configs[@]}"; do
-    IFS=':' read -r name tx_ip tx_port rx_ip rx_port <<< "$config"
-    
-    echo "Building configuration: $name"
-    mkdir -p "build-$name"
-    cd "build-$name"
-    
-    cmake \
-        -DSPP_TX_IP_ADDRESS="$tx_ip" \
-        -DSPP_TX_PORT="$tx_port" \
-        -DSPP_RX_IP_ADDRESS="$rx_ip" \
-        -DSPP_RX_PORT="$rx_port" \
-        ..
-    make
-    cd ..
-done
 ```
 
 ## Verification
@@ -677,6 +672,12 @@ cd build-localhost
 cd build-localhost
 echo "48656c6c6f20576f726c64" | ./spptxpipe 127.0.0.1 55554 123 0 0 16
 ```
+
+### Notes on Impact of Customized IPs and Ports
+
+- `spptxpipe`, `spptx` and `spprx` are does not use the customized IP/port, they use what you provide on the commandline for testing.
+- The customized IP address in `spp_config.h` only affects the configuration for building the external API, `packet_request` and `packet_response` in `spptxfunc.c` and `spprxfunc.c`.
+  
 
 ## Configuration Reference
 
@@ -712,14 +713,7 @@ echo "48656c6c6f20576f726c64" | ./spptxpipe 127.0.0.1 55554 123 0 0 16
    cmake -DSPP_RX_PORT="55556" ..
    ```
 
-2. **IP address validation fails**
-   ```bash
-   # Ensure IP address format is correct
-   cmake -DSPP_TX_IP_ADDRESS="192.168.1.100" ..  # ✓ Good
-   cmake -DSPP_TX_IP_ADDRESS="192.168.1"      .. # ✗ Bad
-   ```
-
-3. **Configuration not updating**
+2. **Configuration not updating**
    ```bash
    # Clean and reconfigure
    rm -rf build

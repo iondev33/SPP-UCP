@@ -1,94 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(spp-ucp VERSION 1.0)
 
-# =============================================================================
-# SPP-UCP Network Configuration Options
-# =============================================================================
-
-# Define configuration options with default values
-set(SPP_TX_IP_ADDRESS "127.0.0.1" CACHE STRING "IP address for packet transmission (packet_request)")
-set(SPP_TX_PORT "55554" CACHE STRING "Port for packet transmission (packet_request)")
-set(SPP_RX_IP_ADDRESS "127.0.0.1" CACHE STRING "IP address for packet reception (packet_indication)")
-set(SPP_RX_PORT "55554" CACHE STRING "Port for packet reception (packet_indication)")
-
-# Configuration presets for common scenarios
-option(SPP_CONFIG_LOCALHOST "Use localhost configuration (127.0.0.1)" ON)
-option(SPP_CONFIG_SEPARATE_PORTS "Use separate ports for TX/RX on same host" OFF)
-
-# Apply configuration presets
-if(SPP_CONFIG_LOCALHOST)
-    set(SPP_TX_IP_ADDRESS "127.0.0.1")
-    set(SPP_RX_IP_ADDRESS "127.0.0.1")
-    if(SPP_CONFIG_SEPARATE_PORTS)
-        set(SPP_TX_PORT "55554")
-        set(SPP_RX_PORT "55555")
-    else()
-        set(SPP_TX_PORT "55554")
-        set(SPP_RX_PORT "55554")
-    endif()
-endif()
-
-# Validation functions
-function(validate_ip_address ip_var ip_value)
-    # Basic IPv4 format validation
-    string(REGEX MATCH "^([0-9]{1,3}\\.){3}[0-9]{1,3}$" valid_ip ${ip_value})
-    if(NOT valid_ip)
-        message(FATAL_ERROR "${ip_var} '${ip_value}' is not a valid IPv4 address")
-    endif()
-endfunction()
-
-function(validate_port port_var port_value)
-    # Validate port range
-    if(port_value LESS 1024 OR port_value GREATER 65535)
-        message(FATAL_ERROR "${port_var} '${port_value}' must be between 1024 and 65535")
-    endif()
-endfunction()
-
-# Validate configuration
-validate_ip_address("SPP_TX_IP_ADDRESS" ${SPP_TX_IP_ADDRESS})
-validate_ip_address("SPP_RX_IP_ADDRESS" ${SPP_RX_IP_ADDRESS})
-validate_port("SPP_TX_PORT" ${SPP_TX_PORT})
-validate_port("SPP_RX_PORT" ${SPP_RX_PORT})
-
-# Generate build metadata
-string(TIMESTAMP SPP_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S UTC" UTC)
-set(SPP_CONFIG_VERSION "1.0")
-
-# Generate configuration header
-configure_file(
-    "${CMAKE_SOURCE_DIR}/src/spp_config.h.in"
-    "${CMAKE_BINARY_DIR}/include/spp_config.h"
-    @ONLY
-)
-
-# Add include directory for generated headers
-include_directories("${CMAKE_BINARY_DIR}/include")
-
-# Display configuration summary
-message(STATUS "=== SPP-UCP Network Configuration ===")
-message(STATUS "Transmission: ${SPP_TX_IP_ADDRESS}:${SPP_TX_PORT}")
-message(STATUS "Reception:    ${SPP_RX_IP_ADDRESS}:${SPP_RX_PORT}")
-message(STATUS "Build Time:   ${SPP_BUILD_TIMESTAMP}")
-message(STATUS "=====================================")
-
-# Create configuration presets for common scenarios
-function(create_config_preset preset_name tx_ip tx_port rx_ip rx_port description)
-    message(STATUS "Available preset: ${preset_name}")
-    message(STATUS "  Description: ${description}")
-    message(STATUS "  Usage: cmake -DSPP_CONFIG_PRESET=${preset_name} ..")
-    message(STATUS "  TX: ${tx_ip}:${tx_port}, RX: ${rx_ip}:${rx_port}")
-endfunction()
-
-# Show available presets
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR VERBOSE_CONFIG)
-    message(STATUS "")
-    message(STATUS "=== Available Configuration Presets ===")
-    create_config_preset("localhost" "127.0.0.1" "55554" "127.0.0.1" "55554" "Single machine testing")
-    create_config_preset("localhost_split" "127.0.0.1" "55554" "127.0.0.1" "55555" "Single machine with separate ports")
-    create_config_preset("lab_network" "192.168.1.203" "55554" "192.168.1.202" "55554" "Lab network configuration")
-    message(STATUS "========================================")
-endif()
-
 # Define CMake options
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
@@ -113,6 +25,106 @@ find_package(Python3 REQUIRED COMPONENTS Development)
 
 # Add Python include directories
 include_directories(${Python3_INCLUDE_DIRS})
+
+# =============================================================================
+# SPP-UCP Network Configuration Options
+# =============================================================================
+
+# Configuration presets
+option(SPP_CONFIG_LOCALHOST "Use localhost configuration (127.0.0.1)" ON)
+option(SPP_CONFIG_SEPARATE_PORTS "Use separate ports for TX/RX on same host" OFF)
+
+# Check if any custom IP addresses were provided via command line
+set(CUSTOM_CONFIG_PROVIDED FALSE)
+if(DEFINED SPP_TX_IP_ADDRESS OR DEFINED SPP_TX_PORT OR 
+   DEFINED SPP_RX_IP_ADDRESS OR DEFINED SPP_RX_PORT)
+    set(CUSTOM_CONFIG_PROVIDED TRUE)
+endif()
+
+# Define configuration options with default values
+# Only set defaults if not already defined
+if(NOT DEFINED SPP_TX_IP_ADDRESS)
+    set(SPP_TX_IP_ADDRESS "127.0.0.1" CACHE STRING "IP address for packet transmission (packet_request)")
+endif()
+
+if(NOT DEFINED SPP_TX_PORT)
+    set(SPP_TX_PORT "55554" CACHE STRING "Port for packet transmission (packet_request)")
+endif()
+
+if(NOT DEFINED SPP_RX_IP_ADDRESS)
+    set(SPP_RX_IP_ADDRESS "127.0.0.1" CACHE STRING "IP address for packet reception (packet_indication)")
+endif()
+
+if(NOT DEFINED SPP_RX_PORT)
+    set(SPP_RX_PORT "55554" CACHE STRING "Port for packet reception (packet_indication)")
+endif()
+
+# Apply presets only if no custom configuration was provided
+if(NOT CUSTOM_CONFIG_PROVIDED AND SPP_CONFIG_LOCALHOST)
+    set(SPP_TX_IP_ADDRESS "127.0.0.1")
+    set(SPP_RX_IP_ADDRESS "127.0.0.1")
+    if(SPP_CONFIG_SEPARATE_PORTS)
+        set(SPP_TX_PORT "55554")
+        set(SPP_RX_PORT "55555")
+    else()
+        set(SPP_TX_PORT "55554")
+        set(SPP_RX_PORT "55554")
+    endif()
+    message(STATUS "Applied localhost preset configuration")
+elseif(CUSTOM_CONFIG_PROVIDED)
+    message(STATUS "Using custom configuration from command line")
+endif()
+
+# Simple validation - just check they're not empty
+if(NOT SPP_TX_IP_ADDRESS)
+    message(FATAL_ERROR "SPP_TX_IP_ADDRESS cannot be empty")
+endif()
+
+if(NOT SPP_RX_IP_ADDRESS)
+    message(FATAL_ERROR "SPP_RX_IP_ADDRESS cannot be empty")
+endif()
+
+if(NOT SPP_TX_PORT)
+    message(FATAL_ERROR "SPP_TX_PORT cannot be empty")
+endif()
+
+if(NOT SPP_RX_PORT)
+    message(FATAL_ERROR "SPP_RX_PORT cannot be empty")
+endif()
+
+# Basic range check for ports (simple comparison)
+if(SPP_TX_PORT LESS 1024)
+    message(WARNING "SPP_TX_PORT ${SPP_TX_PORT} is less than 1024 (may require root privileges)")
+endif()
+
+if(SPP_RX_PORT LESS 1024)
+    message(WARNING "SPP_RX_PORT ${SPP_RX_PORT} is less than 1024 (may require root privileges)")
+endif()
+
+# Generate build metadata
+string(TIMESTAMP SPP_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S UTC" UTC)
+set(SPP_CONFIG_VERSION "1.0")
+
+# Generate configuration header
+configure_file(
+    "${CMAKE_SOURCE_DIR}/src/spp_config.h.in"
+    "${CMAKE_BINARY_DIR}/include/spp_config.h"
+    @ONLY
+)
+
+# Add include directory for generated headers
+include_directories("${CMAKE_BINARY_DIR}/include")
+
+# Display configuration summary
+message(STATUS "=== SPP-UCP Network Configuration ===")
+message(STATUS "Transmission: ${SPP_TX_IP_ADDRESS}:${SPP_TX_PORT}")
+message(STATUS "Reception:    ${SPP_RX_IP_ADDRESS}:${SPP_RX_PORT}")
+message(STATUS "Build Time:   ${SPP_BUILD_TIMESTAMP}")
+message(STATUS "=====================================")
+
+# =============================================================================
+# END OF CONFIGURATION SECTION
+# =============================================================================
 
 # Add subdirectory for the C code
 add_subdirectory(src)

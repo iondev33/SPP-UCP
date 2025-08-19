@@ -12,7 +12,8 @@
 #include <arpa/inet.h>
 #include "space_packet_sender.h"
 
-// Forward declarations for the shared API functions
+// Forward declarations for the shared API functions 
+// From spptxfunc.c and spprxfunc.c with hardcoded IP and ports
 int packet_request(unsigned char *byte_payload, int apid, int seq_count, 
                    int packet_type, int sec_header_flag, size_t to_send_bytes);
 size_t packet_indication(char *buffer, int *apid);
