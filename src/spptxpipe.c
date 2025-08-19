@@ -152,8 +152,6 @@ int main(int argc, char *argv[])
         }
 
         size_t packet_size;
-        // Note: The cast to (const char*) is incorrect based on our previous changes.
-        // It should be (const unsigned char*). I've corrected it here.
         char *packet = build_space_packet(apid, seq_count, (const unsigned char*)payload_buffer,
                                           packet_type, sec_header_flag, &packet_size, payload_size);
 

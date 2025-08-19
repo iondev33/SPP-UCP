@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
         }
 
         size_t packet_size;
-        char *packet = build_space_packet(apid, seq_count, (const char*)payload_buffer,
+        char *packet = build_space_packet(apid, seq_count, (const unsigned char*)payload_buffer,
                                           packet_type, sec_header_flag, &packet_size, payload_size);
 
         if (!packet)

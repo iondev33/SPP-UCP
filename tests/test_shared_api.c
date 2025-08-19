@@ -52,7 +52,7 @@ int test_packet_request_localhost(unsigned char *byte_payload, int apid, int seq
         return -1;
     }
 
-    packet = build_space_packet(apid, seq_count, (const char*)byte_payload,
+    packet = build_space_packet(apid, seq_count, (const unsigned char*)byte_payload,
                                packet_type, sec_header_flag, &packet_size, to_send_bytes);
 
     if (!packet) {
