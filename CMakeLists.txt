@@ -224,6 +224,11 @@ set_tests_properties(ErrorCasesTest PROPERTIES
     LABELS "unit;error"
 )
 
+# Set Python environment for all tests (cross-platform)
+set_tests_properties(BasicAPITest SharedAPITest ErrorCasesTest PROPERTIES
+    ENVIRONMENT "PYTHONPATH=${VENV_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages:$ENV{PYTHONPATH};VIRTUAL_ENV=${VENV_DIR}"
+)
+
 # Create a custom target to run all tests
 add_custom_target(run_all_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
